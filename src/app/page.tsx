@@ -45,11 +45,21 @@ async function Contacts({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
   const params = await searchParams;
   const query = firstValue(params.q).trim();
   const addedId = Number.parseInt(firstValue(params.added), 10) || undefined;
+  const deletedName = firstValue(params.deleted);
 
   const [contacts, total] = await Promise.all([listContacts(query), countContacts()]);
 
   return (
     <>
+      {deletedName && (
+        <p
+          role="status"
+          className="mb-3 rounded-lg bg-background px-4 py-2.5 text-sm ring-1 ring-foreground/10"
+        >
+          Контакт «{deletedName}» удалён
+        </p>
+      )}
+
       <div className="sticky top-0 z-10 -mx-4 bg-neutral-50/90 px-4 pt-1 pb-3 backdrop-blur-md">
         <ContactSearch defaultValue={query} />
         <p className="mt-2 text-sm text-muted-foreground" aria-live="polite">

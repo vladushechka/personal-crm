@@ -70,6 +70,41 @@ test("add a contact, find it by name, add a note; another browser sees the same 
   }
 });
 
+test("delete a contact from its card after confirming", async ({ page }) => {
+  const name = `Удаляемый Контакт ${Date.now().toString(36)}`;
+
+  await page.goto("/contacts/new");
+  await page.getByLabel("Имя").fill(name);
+  await page.getByRole("button", { name: "Сохранить контакт" }).click();
+  await expect(page).toHaveURL(/\/\?added=\d+$/);
+  await page.getByRole("link", { name }).click();
+
+  await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+  await page.getByLabel("Новая заметка").fill("Заметка, которая удалится вместе с контактом");
+  await page.getByRole("button", { name: "Сохранить заметку" }).click();
+  await expect(page.getByTestId("note")).toHaveCount(1);
+  const cardUrl = page.url();
+
+  // "Cancel" keeps the contact
+  await page.getByRole("button", { name: "Удалить" }).click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toContainText(`Удалить контакт «${name}»?`);
+  await expect(dialog).toContainText("Будут удалены карточка и 1 заметка");
+  await dialog.getByRole("button", { name: "Отмена" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+
+  // Confirming deletes it and returns to the list
+  await page.getByRole("button", { name: "Удалить" }).click();
+  await dialog.getByRole("button", { name: "Удалить" }).click();
+  await expect(page).toHaveURL(/\/\?deleted=/);
+  await expect(page.getByRole("status").filter({ hasText: `Контакт «${name}» удалён` })).toBeVisible();
+  await expect(page.getByTestId("contact-row").filter({ hasText: name })).toHaveCount(0);
+
+  await page.goto(cardUrl);
+  await expect(page.getByText("Контакт не найден")).toBeVisible();
+});
+
 test("an unknown contact address shows a 'not found' page", async ({ page }) => {
   await page.goto("/contacts/999999999");
   await expect(page.getByText("Контакт не найден")).toBeVisible();

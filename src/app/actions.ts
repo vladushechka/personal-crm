@@ -10,7 +10,7 @@ import {
   noteInputSchema,
   type ContactField,
 } from "@/lib/contact-schema";
-import { addNote, contactExists, createContact } from "@/lib/contacts";
+import { addNote, contactExists, createContact, deleteContact } from "@/lib/contacts";
 
 export type ContactFormState = {
   errors?: Partial<Record<ContactField, string>>;
@@ -70,4 +70,14 @@ export async function addNoteAction(
 
   refresh();
   return {};
+}
+
+export async function deleteContactAction(contactId: number): Promise<void> {
+  const deletedName = contactIdSchema.safeParse(contactId).success
+    ? await deleteContact(contactId)
+    : null;
+
+  revalidatePath("/");
+  // Already deleted (e.g. in another browser): just go back to the list
+  redirect(deletedName ? `/?deleted=${encodeURIComponent(deletedName)}` : "/");
 }

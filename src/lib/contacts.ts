@@ -81,3 +81,13 @@ export async function createContact(input: ContactInput): Promise<number> {
 export async function addNote(contactId: number, body: string): Promise<void> {
   await db.insert(notes).values({ contactId, body });
 }
+
+// The contact's notes are deleted by the database too (on delete cascade).
+// Returns the deleted contact's name, or null if there was no such contact
+export async function deleteContact(id: number): Promise<string | null> {
+  const [row] = await db
+    .delete(contacts)
+    .where(eq(contacts.id, id))
+    .returning({ name: contacts.name });
+  return row?.name ?? null;
+}

@@ -1,10 +1,18 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { addNoteAction } from "@/app/actions";
+import { addNoteAction, deleteContactAction } from "@/app/actions";
 import { BackLink } from "@/components/back-link";
+import { DeleteContactButton } from "@/components/delete-contact-button";
 import { NoteForm } from "@/components/note-form";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { getContactWithNotes } from "@/lib/contacts";
 import { formatDateTime, pluralize } from "@/lib/format";
@@ -57,6 +65,13 @@ async function ContactDetails({ params }: Pick<PageProps<"/contacts/[id]">, "par
             <h1 className="text-2xl font-semibold tracking-tight">{contact.name}</h1>
           </CardTitle>
           {contact.about && <CardDescription className="text-base">{contact.about}</CardDescription>}
+          <CardAction>
+            <DeleteContactButton
+              name={contact.name}
+              noteCount={contact.notes.length}
+              action={deleteContactAction.bind(null, contact.id)}
+            />
+          </CardAction>
         </CardHeader>
         <CardContent>
           <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-[auto_1fr]">
