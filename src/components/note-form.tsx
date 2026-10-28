@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useRef } from "react";
 
 import type { NoteFormState } from "@/app/actions";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ export function NoteForm({
   action: (prevState: NoteFormState, formData: FormData) => Promise<NoteFormState>;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
+  const submitButton = useRef<HTMLButtonElement>(null);
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
@@ -31,17 +32,18 @@ export function NoteForm({
           defaultValue={state.body}
           aria-invalid={Boolean(state.error)}
           onKeyDown={(event) => {
-            // Ctrl+Enter (Cmd+Enter on Mac) saves the note
+            // Ctrl+Enter (Cmd+Enter on Mac) presses the save button. While a note is saving the
+            // button is disabled, so pressing it again doesn't save the note twice
             if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
               event.preventDefault();
-              event.currentTarget.form?.requestSubmit();
+              submitButton.current?.click();
             }
           }}
         />
         <FieldError>{state.error}</FieldError>
       </Field>
       <div className="flex items-center gap-3">
-        <Button type="submit" disabled={pending}>
+        <Button ref={submitButton} type="submit" disabled={pending}>
           {pending && <Spinner />}
           Сохранить заметку
         </Button>
