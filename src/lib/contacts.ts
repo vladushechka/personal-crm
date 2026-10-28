@@ -3,7 +3,7 @@ import "server-only";
 import { and, asc, count, desc, eq, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
-import { contacts, notes } from "@/db/schema";
+import { contacts, notes, type Contact } from "@/db/schema";
 
 import type { ContactInput } from "./contact-schema";
 
@@ -55,8 +55,13 @@ export async function countContacts(): Promise<number> {
   return row?.value ?? 0;
 }
 
-export async function getContactWithNotes(id: number) {
+export async function getContact(id: number): Promise<Contact | null> {
   const [contact] = await db.select().from(contacts).where(eq(contacts.id, id));
+  return contact ?? null;
+}
+
+export async function getContactWithNotes(id: number) {
+  const contact = await getContact(id);
   if (!contact) return null;
 
   const contactNotes = await db
@@ -76,6 +81,16 @@ export async function contactExists(id: number): Promise<boolean> {
 export async function createContact(input: ContactInput): Promise<number> {
   const [row] = await db.insert(contacts).values(input).returning({ id: contacts.id });
   return row.id;
+}
+
+// Returns false if there is no such contact (e.g. it was deleted in another browser)
+export async function updateContact(id: number, input: ContactInput): Promise<boolean> {
+  const [row] = await db
+    .update(contacts)
+    .set(input)
+    .where(eq(contacts.id, id))
+    .returning({ id: contacts.id });
+  return Boolean(row);
 }
 
 export async function addNote(contactId: number, body: string): Promise<void> {

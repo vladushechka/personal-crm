@@ -34,6 +34,15 @@ export type ContactField = keyof ContactInput;
 
 export const contactFields = ["name", "about", "howWeMet", "phone", "email"] as const satisfies readonly ContactField[];
 
+const MAX_CONTACT_ID = 2_147_483_647; // Postgres integer
+
+// Contact id from the page address, or null if the address can't point to a contact
+export function parseContactId(value: string) {
+  if (!/^\d+$/.test(value)) return null;
+  const id = Number(value);
+  return id >= 1 && id <= MAX_CONTACT_ID ? id : null;
+}
+
 export const noteInputSchema = z.object({
   body: z
     .string()

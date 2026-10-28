@@ -1,10 +1,13 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { PencilIcon } from "lucide-react";
 
 import { addNoteAction, deleteContactAction } from "@/app/actions";
 import { BackLink } from "@/components/back-link";
 import { DeleteContactButton } from "@/components/delete-contact-button";
 import { NoteForm } from "@/components/note-form";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -14,34 +17,30 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { parseContactId } from "@/lib/contact-schema";
 import { getContactWithNotes } from "@/lib/contacts";
 import { formatDateTime, pluralize } from "@/lib/format";
 
-const MAX_ID = 2_147_483_647; // Postgres integer
-
-function parseContactId(value: string) {
-  if (!/^\d+$/.test(value)) return null;
-  const id = Number(value);
-  return id >= 1 && id <= MAX_ID ? id : null;
-}
-
-export default function ContactPage({ params }: PageProps<"/contacts/[id]">) {
+export default function ContactPage({ params, searchParams }: PageProps<"/contacts/[id]">) {
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-6">
       <BackLink />
       <Suspense fallback={<ContactFallback />}>
-        <ContactDetails params={params} />
+        <ContactDetails params={params} searchParams={searchParams} />
       </Suspense>
     </main>
   );
 }
 
-async function ContactDetails({ params }: Pick<PageProps<"/contacts/[id]">, "params">) {
+async function ContactDetails({ params, searchParams }: PageProps<"/contacts/[id]">) {
   const contactId = parseContactId((await params).id);
   if (!contactId) notFound();
 
   const contact = await getContactWithNotes(contactId);
   if (!contact) notFound();
+
+  // Set by the edit form after saving
+  const saved = (await searchParams).saved === "1";
 
   const details = [
     { label: "Откуда знакомы", value: contact.howWeMet },
@@ -59,13 +58,29 @@ async function ContactDetails({ params }: Pick<PageProps<"/contacts/[id]">, "par
 
   return (
     <>
+      {saved && (
+        <p
+          role="status"
+          className="mt-3 rounded-lg bg-background px-4 py-2.5 text-sm ring-1 ring-foreground/10"
+        >
+          Изменения сохранены
+        </p>
+      )}
+
       <Card className="mt-3">
         <CardHeader>
           <CardTitle>
             <h1 className="text-2xl font-semibold tracking-tight">{contact.name}</h1>
           </CardTitle>
           {contact.about && <CardDescription className="text-base">{contact.about}</CardDescription>}
-          <CardAction>
+          <CardAction className="flex flex-wrap justify-end gap-2">
+            <Link
+              href={`/contacts/${contact.id}/edit`}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              <PencilIcon />
+              Изменить
+            </Link>
             <DeleteContactButton
               name={contact.name}
               noteCount={contact.notes.length}

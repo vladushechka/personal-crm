@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useId } from "react";
 
-import { createContactAction, type ContactFormState } from "@/app/actions";
+import type { ContactFormAction, ContactFormState } from "@/app/actions";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -29,15 +29,30 @@ const FIELDS: FieldConfig[] = [
 
 const initialState: ContactFormState = {};
 
-export function ContactForm() {
-  const [state, formAction, pending] = useActionState(createContactAction, initialState);
+// Used both for adding a new contact and for editing an existing one
+export function ContactForm({
+  action,
+  defaultValues,
+  submitLabel,
+  cancelHref,
+}: {
+  action: ContactFormAction;
+  // Current values of the contact being edited
+  defaultValues?: Partial<Record<ContactField, string>>;
+  submitLabel: string;
+  cancelHref: string;
+}) {
+  const [state, formAction, pending] = useActionState(action, initialState);
+  // Next.js keeps visited pages in the document (hidden), so the add and edit forms can be
+  // there at the same time: unique ids keep each label tied to its own input
+  const idPrefix = useId();
 
   return (
     <form action={formAction}>
       <FieldGroup>
         {FIELDS.map((field) => {
           const error = state.errors?.[field.name];
-          const id = `contact-${field.name}`;
+          const id = `${idPrefix}-${field.name}`;
           return (
             <Field key={field.name} data-invalid={Boolean(error)}>
               <FieldLabel htmlFor={id}>
@@ -52,7 +67,7 @@ export function ContactForm() {
                 autoComplete={field.autoComplete}
                 required={field.required}
                 autoFocus={field.name === "name"}
-                defaultValue={state.values?.[field.name]}
+                defaultValue={state.values?.[field.name] ?? defaultValues?.[field.name]}
                 aria-invalid={Boolean(error)}
               />
               <FieldError>{error}</FieldError>
@@ -65,9 +80,9 @@ export function ContactForm() {
         <div className="flex flex-wrap gap-2">
           <Button type="submit" size="lg" disabled={pending}>
             {pending && <Spinner />}
-            Сохранить контакт
+            {submitLabel}
           </Button>
-          <Link href="/" className={buttonVariants({ variant: "outline", size: "lg" })}>
+          <Link href={cancelHref} className={buttonVariants({ variant: "outline", size: "lg" })}>
             Отмена
           </Link>
         </div>

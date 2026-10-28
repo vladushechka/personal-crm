@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { createContactAction } from "@/app/actions";
 import { BackLink } from "@/components/back-link";
 import { ContactForm } from "@/components/contact-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +20,7 @@ export default function NewContactPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <ContactForm />
+          <ContactForm action={createContactAction} submitLabel="Сохранить контакт" cancelHref="/" />
         </CardContent>
       </Card>
     </main>

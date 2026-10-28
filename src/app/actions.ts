@@ -1,7 +1,7 @@
 "use server";
 
 import { refresh, revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 import { z } from "zod";
 
 import {
@@ -9,8 +9,17 @@ import {
   contactInputSchema,
   noteInputSchema,
   type ContactField,
+  type ContactInput,
 } from "@/lib/contact-schema";
-import { addNote, contactExists, createContact, deleteContact } from "@/lib/contacts";
+import {
+  addNote,
+  contactExists,
+  createContact,
+  deleteContact,
+  updateContact,
+} from "@/lib/contacts";
+
+const contactIdSchema = z.number().int().positive();
 
 export type ContactFormState = {
   errors?: Partial<Record<ContactField, string>>;
@@ -18,28 +27,61 @@ export type ContactFormState = {
   values?: Partial<Record<ContactField, string>>;
 };
 
-export async function createContactAction(
-  _prevState: ContactFormState,
+export type ContactFormAction = (
+  prevState: ContactFormState,
   formData: FormData,
-): Promise<ContactFormState> {
+) => Promise<ContactFormState>;
+
+// Adding and editing a contact share the same validation rules
+function parseContactForm(
+  formData: FormData,
+): { data: ContactInput; invalid?: never } | { data?: never; invalid: ContactFormState } {
   const values = Object.fromEntries(
     contactFields.map((field) => [field, String(formData.get(field) ?? "")]),
   ) as Record<ContactField, string>;
 
   const parsed = contactInputSchema.safeParse(values);
-  if (!parsed.success) {
-    const errors: Partial<Record<ContactField, string>> = {};
-    for (const issue of parsed.error.issues) {
-      const field = issue.path[0] as ContactField;
-      errors[field] ??= issue.message;
-    }
-    return { errors, values };
-  }
+  if (parsed.success) return { data: parsed.data };
 
-  const id = await createContact(parsed.data);
+  const errors: Partial<Record<ContactField, string>> = {};
+  for (const issue of parsed.error.issues) {
+    const field = issue.path[0] as ContactField;
+    errors[field] ??= issue.message;
+  }
+  return { invalid: { errors, values } };
+}
+
+export async function createContactAction(
+  _prevState: ContactFormState,
+  formData: FormData,
+): Promise<ContactFormState> {
+  const { data, invalid } = parseContactForm(formData);
+  if (invalid) return invalid;
+
+  const id = await createContact(data);
 
   revalidatePath("/");
   redirect(`/?added=${id}`);
+}
+
+export async function updateContactAction(
+  contactId: number,
+  _prevState: ContactFormState,
+  formData: FormData,
+): Promise<ContactFormState> {
+  const { data, invalid } = parseContactForm(formData);
+  if (invalid) return invalid;
+
+  const updated =
+    contactIdSchema.safeParse(contactId).success && (await updateContact(contactId, data));
+
+  revalidatePath("/");
+  // Replace the form in the browser history, so "Back" from the card doesn't reopen it.
+  // Deleted meanwhile (e.g. in another browser): the card address shows "not found"
+  redirect(
+    updated ? `/contacts/${contactId}?saved=1` : `/contacts/${contactId}`,
+    RedirectType.replace,
+  );
 }
 
 export type NoteFormState = {
@@ -47,8 +89,6 @@ export type NoteFormState = {
   // Submitted text, so the form keeps it when saving fails
   body?: string;
 };
-
-const contactIdSchema = z.number().int().positive();
 
 export async function addNoteAction(
   contactId: number,
