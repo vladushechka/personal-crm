@@ -13,8 +13,8 @@ import {
 
 export default function ContactNotFound() {
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6">
-      <Empty className="bg-background ring-1 ring-foreground/10">
+    <main className="mx-auto w-full max-w-3xl px-6 py-8">
+      <Empty className="bg-card ring-1 ring-foreground/10">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <UserXIcon />

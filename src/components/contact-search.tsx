@@ -34,7 +34,7 @@ export function ContactSearch({ defaultValue }: { defaultValue: string }) {
         search(new FormData(event.currentTarget).get("q")?.toString() ?? "");
       }}
     >
-      <InputGroup className="h-10 bg-background">
+      <InputGroup className="h-12 bg-card">
         <InputGroupAddon>
           <SearchIcon />
         </InputGroupAddon>

@@ -22,9 +22,10 @@ const CONTACT_WORDS: [string, string, string] = ["контакт", "контак
 
 export default function HomePage({ searchParams }: PageProps<"/">) {
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 pb-16">
-      <div className="flex items-center justify-between gap-4 pt-6 pb-3">
-        <h1 className="text-2xl font-semibold tracking-tight">Контакты</h1>
+    <main className="mx-auto w-full max-w-3xl px-6 pb-16">
+      {/* On phones the button goes full width under the heading, as on the landing */}
+      <div className="flex flex-col gap-4 pt-8 pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="font-heading text-3xl font-bold tracking-heading sm:text-4xl">Контакты</h1>
         <Link href="/contacts/new" className={buttonVariants({ size: "lg" })}>
           <PlusIcon />
           Добавить контакт
@@ -54,13 +55,13 @@ async function Contacts({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
       {deletedName && (
         <p
           role="status"
-          className="mb-3 rounded-lg bg-background px-4 py-2.5 text-sm ring-1 ring-foreground/10"
+          className="mb-3 rounded-lg bg-accent-soft px-4 py-3 text-base ring-1 ring-accent/25"
         >
           Контакт «{deletedName}» удалён
         </p>
       )}
 
-      <div className="sticky top-0 z-10 -mx-4 bg-neutral-50/90 px-4 pt-1 pb-3 backdrop-blur-md">
+      <div className="sticky top-0 z-10 -mx-6 bg-background/90 px-6 pt-2 pb-3 backdrop-blur-md">
         <ContactSearch defaultValue={query} />
         <p className="mt-2 text-sm text-muted-foreground" aria-live="polite">
           {query
@@ -85,11 +86,11 @@ async function Contacts({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
 function ContactsFallback() {
   return (
     <>
-      <div className="pt-1 pb-3">
-        <div className="h-10 rounded-lg border bg-background" />
+      <div className="pt-2 pb-3">
+        <div className="h-12 rounded-lg border border-input bg-card" />
         <p className="mt-2 text-sm text-muted-foreground">&nbsp;</p>
       </div>
-      <div className="flex items-center justify-center gap-2 rounded-xl bg-background py-16 text-sm text-muted-foreground ring-1 ring-foreground/10">
+      <div className="flex items-center justify-center gap-2 rounded-xl bg-card py-16 text-base text-muted-foreground ring-1 ring-foreground/10">
         <Spinner />
         Загружаю контакты…
       </div>
@@ -99,7 +100,7 @@ function ContactsFallback() {
 
 function NoContacts() {
   return (
-    <Empty className="bg-background ring-1 ring-foreground/10">
+    <Empty className="bg-card ring-1 ring-foreground/10">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <UsersIcon />
@@ -119,7 +120,7 @@ function NoContacts() {
 
 function NothingFound({ query }: { query: string }) {
   return (
-    <Empty className="bg-background ring-1 ring-foreground/10">
+    <Empty className="bg-card ring-1 ring-foreground/10">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <SearchXIcon />

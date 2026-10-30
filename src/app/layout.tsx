@@ -1,13 +1,19 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Golos_Text, Playfair_Display } from "next/font/google";
 import Link from "next/link";
-import { ContactRoundIcon } from "lucide-react";
 
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-sans",
+// Same fonts as the landing page: Golos Text for text, Playfair Display for headings
+const golos = Golos_Text({
+  variable: "--font-golos",
   subsets: ["latin", "cyrillic"],
+});
+
+const playfair = Playfair_Display({
+  variable: "--font-playfair",
+  subsets: ["latin", "cyrillic"],
+  style: ["normal", "italic"],
 });
 
 export const metadata: Metadata = {
@@ -17,14 +23,30 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ru" className={`${inter.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col bg-neutral-50">
-        <header className="border-b bg-background">
-          <div className="mx-auto flex h-12 w-full max-w-3xl items-center px-4">
-            <Link href="/" className="flex items-center gap-2 text-sm font-semibold">
-              <ContactRoundIcon className="size-4" aria-hidden />
+    <html lang="ru" className={`${golos.variable} ${playfair.variable} h-full antialiased`}>
+      <body className="flex min-h-full flex-col">
+        <header className="mx-auto w-full max-w-3xl px-6 pt-5">
+          <div className="flex items-center justify-between border-b pb-5">
+            <Link
+              href="/"
+              className="rounded-sm font-heading text-xl font-bold outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:text-2xl"
+            >
               Личная CRM
             </Link>
+            {/* Notepad icon from the landing header */}
+            <svg
+              className="size-5.5 sm:size-6"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M5 4h11l3 3v13H5z" />
+              <path d="M9 10h6M9 14h6" />
+            </svg>
           </div>
         </header>
         {children}

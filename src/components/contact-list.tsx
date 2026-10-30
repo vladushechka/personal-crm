@@ -32,13 +32,14 @@ export function ContactList({
   highlightId?: number;
 }) {
   return (
-    <div className="overflow-clip rounded-xl bg-background ring-1 ring-foreground/10">
+    <div className="overflow-clip rounded-xl bg-card ring-1 ring-foreground/10">
       {groupByFirstLetter(contacts).map(({ letter, contacts }) => (
         <section key={letter} aria-label={letter}>
-          <h2 className="border-y bg-muted/60 px-4 py-1 text-xs font-semibold text-muted-foreground first:border-t-0">
+          {/* Letters look like the block numbers on the landing */}
+          <h2 className="border-y border-glass-border bg-muted px-5 py-1 font-heading text-xl font-semibold text-accent italic first:border-t-0">
             {letter}
           </h2>
-          <ul className="divide-y">
+          <ul className="divide-y divide-glass-border">
             {contacts.map((contact) => (
               <ContactRow
                 key={contact.id}
@@ -67,14 +68,14 @@ function ContactRow({
       <Link
         href={`/contacts/${contact.id}`}
         className={cn(
-          "flex flex-col gap-0.5 px-4 py-2.5 outline-none hover:bg-muted/60 focus-visible:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset",
-          highlighted && "bg-emerald-50 hover:bg-emerald-100/70 dark:bg-emerald-950/40",
+          "flex flex-col gap-0.5 px-5 py-3 outline-none hover:bg-muted focus-visible:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset",
+          highlighted && "bg-accent-soft hover:bg-accent-soft",
         )}
       >
-        <span className="flex items-center gap-2 font-medium">
+        <span className="flex items-center gap-2 text-base font-semibold">
           {contact.name}
           {highlighted && (
-            <span className="rounded-md bg-emerald-600 px-1.5 py-0.5 text-xs font-medium text-white">
+            <span className="rounded-sm bg-accent px-2 py-0.5 text-xs font-semibold text-accent-foreground">
               Только что добавлен
             </span>
           )}

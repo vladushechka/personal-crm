@@ -27,7 +27,7 @@ export function NoteForm({
           name="body"
           required
           rows={3}
-          className="min-h-20 bg-background"
+          className="min-h-24 bg-card"
           placeholder="О чём поговорили, о чём договорились"
           defaultValue={state.body}
           aria-invalid={Boolean(state.error)}
@@ -47,7 +47,7 @@ export function NoteForm({
           {pending && <Spinner />}
           Сохранить заметку
         </Button>
-        <span className="text-xs text-muted-foreground">или Ctrl+Enter</span>
+        <span className="text-sm text-muted-foreground">или Ctrl+Enter</span>
       </div>
     </form>
   );

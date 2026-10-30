@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 
 export default function EditContactPage({ params }: PageProps<"/contacts/[id]/edit">) {
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6">
+    <main className="mx-auto w-full max-w-3xl px-6 py-6">
       <BackLink />
       <Suspense fallback={<EditContactFallback />}>
         <EditContact params={params} />
@@ -41,7 +41,7 @@ async function EditContact({ params }: Pick<PageProps<"/contacts/[id]/edit">, "p
     <Card className="mt-3">
       <CardHeader>
         <CardTitle>
-          <h1 className="text-xl font-semibold">Изменить контакт</h1>
+          <h1 className="text-2xl sm:text-3xl">Изменить контакт</h1>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -61,7 +61,7 @@ async function EditContact({ params }: Pick<PageProps<"/contacts/[id]/edit">, "p
 
 function EditContactFallback() {
   return (
-    <div className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-background py-16 text-sm text-muted-foreground ring-1 ring-foreground/10">
+    <div className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-card py-16 text-base text-muted-foreground ring-1 ring-foreground/10">
       <Spinner />
       Загружаю контакт…
     </div>

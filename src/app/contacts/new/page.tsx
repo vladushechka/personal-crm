@@ -11,12 +11,12 @@ export const metadata: Metadata = {
 
 export default function NewContactPage() {
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6">
+    <main className="mx-auto w-full max-w-3xl px-6 py-6">
       <BackLink />
       <Card className="mt-3">
         <CardHeader>
           <CardTitle>
-            <h1 className="text-xl font-semibold">Новый контакт</h1>
+            <h1 className="text-2xl sm:text-3xl">Новый контакт</h1>
           </CardTitle>
         </CardHeader>
         <CardContent>
