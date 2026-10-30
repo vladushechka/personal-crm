@@ -6,7 +6,7 @@ import { ContactForm } from "@/components/contact-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "Новый контакт · Личная CRM",
+  title: "Новый контакт · Personal CRM",
 };
 
 export default function NewContactPage() {

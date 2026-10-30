@@ -12,7 +12,7 @@ import { contactFields, parseContactId } from "@/lib/contact-schema";
 import { getContact } from "@/lib/contacts";
 
 export const metadata: Metadata = {
-  title: "Изменить контакт · Личная CRM",
+  title: "Изменить контакт · Personal CRM",
 };
 
 export default function EditContactPage({ params }: PageProps<"/contacts/[id]/edit">) {

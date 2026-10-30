@@ -17,7 +17,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Личная CRM",
+  title: "Personal CRM",
   description: "Контакты людей, которых я знаю лично, и заметки о разговорах с ними",
 };
 
@@ -31,7 +31,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               href="/"
               className="rounded-sm font-heading text-xl font-bold outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:text-2xl"
             >
-              Личная CRM
+              Personal CRM
             </Link>
             {/* Notepad icon from the landing header */}
             <svg
