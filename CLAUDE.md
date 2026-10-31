@@ -38,10 +38,10 @@
 
 ### Адреса
 
-- Домен vladmath.com, DNS в Cloudflare
+- Домен vladmath.com, DNS в Cloudflare. Сам vladmath.com без поддомена отдан под другой сайт: в этом проекте не используем
 - Приложение: https://app.vladmath.com
-- Лендинг: https://vladmath.com, сам домен без поддомена - отдельный репозиторий github.com/vladushechka/personal-crm-landing; его кнопки «Перейти в приложение» ведут на https://app.vladmath.com. Адрес web.vladmath.com не используем
-- Записи `app` и `@` в Cloudflare ведут на IP сервера, только «DNS only» (серое облачко), не «Proxied»: российские провайдеры с июня 2025 замедляют трафик через прокси Cloudflare. Записи DNS делаю я
+- Лендинг: https://web.vladmath.com - отдельный репозиторий github.com/vladushechka/personal-crm-landing; его кнопки «Перейти в приложение» ведут на https://app.vladmath.com
+- Записи app и web в Cloudflare - только «DNS only» (серое облачко), не «Proxied»: российские провайдеры с июня 2025 замедляют трафик через прокси Cloudflare. Записи DNS делаю я
 
 ### Окружения и сервер
 
