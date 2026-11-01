@@ -3,10 +3,17 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { PencilIcon } from "lucide-react";
 
-import { addNoteAction, deleteContactAction } from "@/app/actions";
+import {
+  addNoteAction,
+  deleteContactAction,
+  deleteNoteAction,
+  updateNoteAction,
+} from "@/app/actions";
 import { BackLink } from "@/components/back-link";
 import { DeleteContactButton } from "@/components/delete-contact-button";
 import { NoteForm } from "@/components/note-form";
+import { NoteItem } from "@/components/note-item";
+import { ResetOnNavigation } from "@/components/reset-on-navigation";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -130,26 +137,29 @@ async function ContactDetails({ params, searchParams }: PageProps<"/contacts/[id
         </div>
 
         {contact.notes.length > 0 && (
-          <ol
-            className="mt-6 rounded-xl bg-card px-5 ring-1 ring-foreground/10 sm:px-6"
-            data-testid="notes"
-          >
-            {contact.notes.map((note) => (
-              <li
-                key={note.id}
-                className="border-t border-glass-border py-4 first:border-t-0 sm:py-5"
-                data-testid="note"
-              >
-                <time
-                  dateTime={note.createdAt.toISOString()}
-                  className="text-sm font-bold text-accent"
+          // A note left open for editing closes when the card is opened again
+          <ResetOnNavigation>
+            <ol
+              className="mt-6 rounded-xl bg-card px-5 ring-1 ring-foreground/10 sm:px-6"
+              data-testid="notes"
+            >
+              {contact.notes.map((note) => (
+                <li
+                  key={note.id}
+                  className="border-t border-glass-border py-4 first:border-t-0 sm:py-5"
+                  data-testid="note"
                 >
-                  {formatDateTime(note.createdAt)}
-                </time>
-                <p className="mt-1.5 text-base/relaxed whitespace-pre-wrap">{note.body}</p>
-              </li>
-            ))}
-          </ol>
+                  <NoteItem
+                    body={note.body}
+                    dateTime={note.createdAt.toISOString()}
+                    dateLabel={formatDateTime(note.createdAt)}
+                    updateAction={updateNoteAction.bind(null, contact.id, note.id)}
+                    deleteAction={deleteNoteAction.bind(null, contact.id, note.id)}
+                  />
+                </li>
+              ))}
+            </ol>
+          </ResetOnNavigation>
         )}
       </section>
     </>

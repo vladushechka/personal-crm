@@ -86,7 +86,7 @@ test("delete a contact from its card after confirming", async ({ page }) => {
   const cardUrl = page.url();
 
   // "Cancel" keeps the contact
-  await page.getByRole("button", { name: "Удалить" }).click();
+  await page.getByRole("button", { name: "Удалить", exact: true }).click();
   const dialog = page.getByRole("alertdialog");
   await expect(dialog).toContainText(`Удалить контакт «${name}»?`);
   await expect(dialog).toContainText("Будут удалены карточка и 1 заметка");
@@ -95,7 +95,7 @@ test("delete a contact from its card after confirming", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
 
   // Confirming deletes it and returns to the list
-  await page.getByRole("button", { name: "Удалить" }).click();
+  await page.getByRole("button", { name: "Удалить", exact: true }).click();
   await dialog.getByRole("button", { name: "Удалить" }).click();
   await expect(page).toHaveURL(/\/\?deleted=/);
   await expect(page.getByRole("status").filter({ hasText: `Контакт «${name}» удалён` })).toBeVisible();

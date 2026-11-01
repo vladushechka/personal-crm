@@ -16,10 +16,13 @@ import {
   contactExists,
   createContact,
   deleteContact,
+  deleteNote,
   updateContact,
+  updateNote,
 } from "@/lib/contacts";
 
 const contactIdSchema = z.number().int().positive();
+const noteIdSchema = z.number().int().positive();
 
 export type ContactFormState = {
   errors?: Partial<Record<ContactField, string>>;
@@ -110,6 +113,44 @@ export async function addNoteAction(
 
   refresh();
   return {};
+}
+
+export type EditNoteState = NoteFormState & {
+  // Tells the form to close: the note is saved
+  saved?: boolean;
+};
+
+export async function updateNoteAction(
+  contactId: number,
+  noteId: number,
+  _prevState: EditNoteState,
+  formData: FormData,
+): Promise<EditNoteState> {
+  const body = String(formData.get("body") ?? "");
+
+  const parsed = noteInputSchema.safeParse({ body });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message, body };
+  }
+
+  const updated =
+    contactIdSchema.safeParse(contactId).success &&
+    noteIdSchema.safeParse(noteId).success &&
+    (await updateNote(contactId, noteId, parsed.data.body));
+  if (!updated) {
+    return { error: "Заметка не найдена", body };
+  }
+
+  refresh();
+  return { saved: true };
+}
+
+export async function deleteNoteAction(contactId: number, noteId: number): Promise<void> {
+  // Already deleted (e.g. in another browser): the refreshed card just doesn't show it
+  if (contactIdSchema.safeParse(contactId).success && noteIdSchema.safeParse(noteId).success) {
+    await deleteNote(contactId, noteId);
+  }
+  refresh();
 }
 
 export async function deleteContactAction(contactId: number): Promise<void> {
