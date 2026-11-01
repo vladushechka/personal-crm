@@ -97,6 +97,21 @@ export async function addNote(contactId: number, body: string): Promise<void> {
   await db.insert(notes).values({ contactId, body });
 }
 
+// The date stays the original one, so the note keeps its place in the list.
+// Returns false if the contact has no such note (e.g. it was deleted in another browser)
+export async function updateNote(contactId: number, noteId: number, body: string): Promise<boolean> {
+  const [row] = await db
+    .update(notes)
+    .set({ body })
+    .where(and(eq(notes.id, noteId), eq(notes.contactId, contactId)))
+    .returning({ id: notes.id });
+  return Boolean(row);
+}
+
+export async function deleteNote(contactId: number, noteId: number): Promise<void> {
+  await db.delete(notes).where(and(eq(notes.id, noteId), eq(notes.contactId, contactId)));
+}
+
 // The contact's notes are deleted by the database too (on delete cascade).
 // Returns the deleted contact's name, or null if there was no such contact
 export async function deleteContact(id: number): Promise<string | null> {
