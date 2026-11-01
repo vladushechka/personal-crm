@@ -31,8 +31,9 @@ function requireEnv(name: string): string {
 
 export function getDatabaseConfig(): DatabaseConfig {
   return {
-    // docker-compose.yml publishes Postgres on 127.0.0.1 only
-    host: "127.0.0.1",
+    // Locally docker-compose.yml publishes Postgres on 127.0.0.1 only;
+    // on the server the app container reaches the "db" container by name
+    host: process.env.POSTGRES_HOST || "127.0.0.1",
     port: Number(process.env.POSTGRES_PORT || 5432),
     user: requireEnv("POSTGRES_USER"),
     password: requireEnv("POSTGRES_PASSWORD"),

@@ -1,0 +1,17 @@
+# Secrets never go into the image: the server passes them as environment variables
+.env
+.env.*
+
+.git
+.github
+node_modules
+.next
+coverage
+test-results
+playwright-report
+e2e
+playwright.config.ts
+deploy
+*.tsbuildinfo
+next-env.d.ts
+.claude

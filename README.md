@@ -68,6 +68,44 @@ pnpm start
 Автоматически: `pnpm test:e2e`. Тест проходит те же шаги в Google Chrome и Microsoft Edge.
 Он работает с отдельной базой `personal_crm_e2e` и пересоздаёт её при каждом запуске - ваши контакты не затрагиваются.
 
+## Выкатка
+
+Адрес: https://app.vladmath.com
+
+Каждый push в ветку `main` - это выкатка. Сама она идёт так (вкладка Actions на GitHub):
+
+1. GitHub собирает образ приложения (`Dockerfile`) и кладёт его в GHCR с меткой - хешем коммита
+2. Копирует `deploy/` на сервер в `/opt/crm/prod` и запускает `deploy.sh`
+3. На сервере: миграции базы → новая версия приложения → проверка `/health`
+
+Если миграции упали - новая версия не запускается, работает старая. Если `/health` не отвечает 200 - выкатка красная, ничего само не откатывается.
+
+### Как проверить
+
+- Откройте https://app.vladmath.com
+- https://app.vladmath.com/health - должно быть `{"status":"ok"}`
+
+### На сервере
+
+Зайти: `ssh crm`. Всё приложение - в `/opt/crm/prod`:
+
+- `.env` - пароль базы, права 600. Пишется руками, в git не попадает
+- `current-image`, `previous-image` - текущая и предыдущая версии
+
+Посмотреть, что запущено, и логи:
+
+```
+cd /opt/crm/prod
+APP_IMAGE=$(cat current-image) docker compose -p prod ps
+APP_IMAGE=$(cat current-image) docker compose -p prod logs app --tail 50
+```
+
+Откат на предыдущую версию (вручную):
+
+```
+bash /opt/crm/prod/deploy.sh "$(cat /opt/crm/prod/previous-image)"
+```
+
 ## Для разработки
 
 - `pnpm dev` - режим разработки, страницы обновляются при изменении кода
