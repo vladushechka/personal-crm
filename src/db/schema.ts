@@ -1,4 +1,9 @@
-import { index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { check, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+
+// How often the user wants to talk to a contact
+export const keepInTouchFrequencies = ["week", "month", "quarter", "year"] as const;
+export type KeepInTouchFrequency = (typeof keepInTouchFrequencies)[number];
 
 // A person the user knows personally
 export const contacts = pgTable(
@@ -12,8 +17,17 @@ export const contacts = pgTable(
     phone: text("phone"),
     email: text("email"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    keepInTouchFrequency: text("keep_in_touch_frequency").$type<KeepInTouchFrequency>(),
+    // When the current frequency was chosen: the countdown starts here while there are no notes
+    keepInTouchSince: timestamp("keep_in_touch_since", { withTimezone: true }),
   },
-  (table) => [index("contacts_name_idx").on(table.name)],
+  (table) => [
+    index("contacts_name_idx").on(table.name),
+    check(
+      "contacts_keep_in_touch_frequency_check",
+      sql`${table.keepInTouchFrequency} in ('week', 'month', 'quarter', 'year')`,
+    ),
+  ],
 );
 
 // A note about a contact, usually written after a conversation

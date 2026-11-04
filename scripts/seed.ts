@@ -7,7 +7,7 @@ import { createDb } from "../src/db/client";
 import { getDatabaseConfig, loadEnvFile } from "../src/db/config";
 import { contacts } from "../src/db/schema";
 
-import { insertFakeContacts } from "./seed-db";
+import { assignFakeFrequencies, insertFakeContacts } from "./seed-db";
 
 const DEFAULT_COUNT = 1000;
 
@@ -28,7 +28,11 @@ async function main() {
     }
 
     const result = await insertFakeContacts(db, requested);
-    console.log(`Added ${result.contactCount} contacts and ${result.noteCount} notes.`);
+    const withFrequency = await assignFakeFrequencies(db);
+    console.log(
+      `Added ${result.contactCount} contacts and ${result.noteCount} notes, ` +
+        `${withFrequency} contacts got a "how often to talk".`,
+    );
   } finally {
     await client.end();
   }
