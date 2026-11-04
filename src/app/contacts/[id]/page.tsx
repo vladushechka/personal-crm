@@ -7,10 +7,12 @@ import {
   addNoteAction,
   deleteContactAction,
   deleteNoteAction,
+  setKeepInTouchAction,
   updateNoteAction,
 } from "@/app/actions";
 import { BackLink } from "@/components/back-link";
 import { DeleteContactButton } from "@/components/delete-contact-button";
+import { KeepInTouchSelect } from "@/components/keep-in-touch-select";
 import { NoteForm } from "@/components/note-form";
 import { NoteItem } from "@/components/note-item";
 import { ResetOnNavigation } from "@/components/reset-on-navigation";
@@ -115,6 +117,12 @@ async function ContactDetails({ params, searchParams }: PageProps<"/contacts/[id
                 </dd>
               </div>
             ))}
+            <div className="contents">
+              <KeepInTouchSelect
+                frequency={contact.keepInTouchFrequency}
+                action={setKeepInTouchAction.bind(null, contact.id)}
+              />
+            </div>
           </dl>
         </CardContent>
       </Card>

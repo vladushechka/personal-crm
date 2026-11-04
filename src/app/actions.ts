@@ -17,12 +17,18 @@ import {
   createContact,
   deleteContact,
   deleteNote,
+  setKeepInTouch,
   updateContact,
   updateNote,
 } from "@/lib/contacts";
+import { frequencies } from "@/lib/keep-in-touch";
 
 const contactIdSchema = z.number().int().positive();
 const noteIdSchema = z.number().int().positive();
+// "" is "Не задано" in the form
+const frequencyInputSchema = z
+  .union([z.literal(""), z.enum(frequencies)])
+  .transform((value) => (value === "" ? null : value));
 
 export type ContactFormState = {
   errors?: Partial<Record<ContactField, string>>;
@@ -111,6 +117,8 @@ export async function addNoteAction(
 
   await addNote(contactId, parsed.data.body);
 
+  // A note restarts the countdown in the "Пора связаться" block on the list
+  revalidatePath("/");
   refresh();
   return {};
 }
@@ -150,7 +158,36 @@ export async function deleteNoteAction(contactId: number, noteId: number): Promi
   if (contactIdSchema.safeParse(contactId).success && noteIdSchema.safeParse(noteId).success) {
     await deleteNote(contactId, noteId);
   }
+  // Deleting the latest note can bring the contact back to the "Пора связаться" block
+  revalidatePath("/");
   refresh();
+}
+
+export type KeepInTouchState = {
+  error?: string;
+};
+
+export async function setKeepInTouchAction(
+  contactId: number,
+  _prevState: KeepInTouchState,
+  formData: FormData,
+): Promise<KeepInTouchState> {
+  const parsed = frequencyInputSchema.safeParse(formData.get("frequency") ?? "");
+  if (!parsed.success) {
+    return { error: "Неизвестная частота" };
+  }
+
+  const updated =
+    contactIdSchema.safeParse(contactId).success &&
+    (await setKeepInTouch(contactId, parsed.data));
+  if (!updated) {
+    return { error: "Контакт не найден" };
+  }
+
+  // The "Пора связаться" block on the list depends on it
+  revalidatePath("/");
+  refresh();
+  return {};
 }
 
 export async function deleteContactAction(contactId: number): Promise<void> {

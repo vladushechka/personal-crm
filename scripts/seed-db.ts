@@ -1,3 +1,5 @@
+import { sql } from "drizzle-orm";
+
 import type { Db } from "../src/db/client";
 import { contacts, notes } from "../src/db/schema";
 
@@ -31,4 +33,18 @@ export async function insertFakeContacts(db: Db, count: number) {
   });
 
   return { contactCount: fakeContacts.length, noteCount };
+}
+
+// About every tenth contact gets a random "how often to talk" chosen sometime in the last half
+// year, so the "Пора связаться" block has people in it. Returns how many contacts got one
+export async function assignFakeFrequencies(db: Db) {
+  const updated = await db
+    .update(contacts)
+    .set({
+      keepInTouchFrequency: sql`(array['week', 'month', 'quarter', 'year'])[1 + floor(random() * 4)::int]`,
+      keepInTouchSince: sql`now() - random() * interval '180 days'`,
+    })
+    .where(sql`random() < 0.1`)
+    .returning({ id: contacts.id });
+  return updated.length;
 }

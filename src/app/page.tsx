@@ -4,6 +4,7 @@ import { PlusIcon, SearchXIcon, UsersIcon } from "lucide-react";
 
 import { ContactList, contactRowId } from "@/components/contact-list";
 import { ContactSearch } from "@/components/contact-search";
+import { ReachOutBlock, type ReachOutRow } from "@/components/reach-out-block";
 import { ScrollIntoView } from "@/components/scroll-into-view";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -15,8 +16,14 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
-import { countContacts, listContacts } from "@/lib/contacts";
-import { pluralize } from "@/lib/format";
+import {
+  countContacts,
+  listContacts,
+  listContactsToReachOut,
+  type ContactToReachOut,
+} from "@/lib/contacts";
+import { formatDate, pluralize } from "@/lib/format";
+import { frequencyLabels } from "@/lib/keep-in-touch";
 
 const CONTACT_WORDS: [string, string, string] = ["контакт", "контакта", "контактов"];
 
@@ -48,7 +55,12 @@ async function Contacts({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
   const addedId = Number.parseInt(firstValue(params.added), 10) || undefined;
   const deletedName = firstValue(params.deleted);
 
-  const [contacts, total] = await Promise.all([listContacts(query), countContacts()]);
+  // The "Пора связаться" block is hidden while searching
+  const [contacts, total, toReachOut] = await Promise.all([
+    listContacts(query),
+    countContacts(),
+    query ? [] : listContactsToReachOut(),
+  ]);
 
   return (
     <>
@@ -60,6 +72,8 @@ async function Contacts({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
           Контакт «{deletedName}» удалён
         </p>
       )}
+
+      {toReachOut.length > 0 && <ReachOutBlock rows={toReachOut.map(toReachOutRow)} />}
 
       <div className="sticky top-0 z-10 -mx-6 bg-background/90 px-6 pt-2 pb-3 backdrop-blur-md">
         <ContactSearch defaultValue={query} />
@@ -81,6 +95,18 @@ async function Contacts({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
       {addedId && <ScrollIntoView elementId={contactRowId(addedId)} />}
     </>
   );
+}
+
+// Dates are formatted here, on the server, so the browser shows the same text
+function toReachOutRow(contact: ContactToReachOut): ReachOutRow {
+  const lastTalk = contact.lastNoteAt
+    ? `последняя заметка ${formatDate(contact.lastNoteAt)}`
+    : `заметок нет, частота задана ${formatDate(contact.since)}`;
+  return {
+    id: contact.id,
+    name: contact.name,
+    details: `${frequencyLabels[contact.frequency]} · ${lastTalk}`,
+  };
 }
 
 function ContactsFallback() {

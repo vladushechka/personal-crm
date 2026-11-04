@@ -15,3 +15,10 @@ const dateTimeFormat = new Intl.DateTimeFormat("ru-RU", {
 export function formatDateTime(date: Date) {
   return dateTimeFormat.format(date);
 }
+
+const dateFormat = new Intl.DateTimeFormat("ru-RU", { dateStyle: "long" });
+
+// formatDate(new Date("2026-04-03")) -> "3 апреля 2026 г."
+export function formatDate(date: Date) {
+  return dateFormat.format(date);
+}

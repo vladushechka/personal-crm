@@ -1,9 +1,9 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNotNull, max, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
-import { contacts, notes, type Contact } from "@/db/schema";
+import { contacts, notes, type Contact, type KeepInTouchFrequency } from "@/db/schema";
 
 import type { ContactInput } from "./contact-schema";
 
@@ -110,6 +110,70 @@ export async function updateNote(contactId: number, noteId: number, body: string
 
 export async function deleteNote(contactId: number, noteId: number): Promise<void> {
   await db.delete(notes).where(and(eq(notes.id, noteId), eq(notes.contactId, contactId)));
+}
+
+// A new frequency restarts the countdown for a contact without notes; null clears both.
+// Returns false if there is no such contact (e.g. it was deleted in another browser)
+export async function setKeepInTouch(
+  contactId: number,
+  frequency: KeepInTouchFrequency | null,
+): Promise<boolean> {
+  const [row] = await db
+    .update(contacts)
+    .set({
+      keepInTouchFrequency: frequency,
+      keepInTouchSince: frequency ? sql`now()` : null,
+    })
+    .where(eq(contacts.id, contactId))
+    .returning({ id: contacts.id });
+  return Boolean(row);
+}
+
+export type ContactToReachOut = {
+  id: number;
+  name: string;
+  frequency: KeepInTouchFrequency;
+  lastNoteAt: Date | null;
+  since: Date;
+};
+
+// Date of each contact's latest note
+const lastNotes = db
+  .select({ contactId: notes.contactId, lastNoteAt: max(notes.createdAt).as("last_note_at") })
+  .from(notes)
+  .groupBy(notes.contactId)
+  .as("last_notes");
+
+// The last conversation is the latest note, or the day the frequency was chosen if there are
+// no notes. Months, quarters and years are calendar ones, as Postgres interval arithmetic does
+const dueAt = sql`coalesce(${lastNotes.lastNoteAt}, ${contacts.keepInTouchSince}) + case ${contacts.keepInTouchFrequency}
+  when 'week' then interval '7 days'
+  when 'month' then interval '1 month'
+  when 'quarter' then interval '3 months'
+  when 'year' then interval '1 year'
+end`;
+
+// Contacts whose time to talk has passed; the earliest due date, i.e. the most days overdue, first
+export async function listContactsToReachOut(): Promise<ContactToReachOut[]> {
+  const rows = await db
+    .select({
+      id: contacts.id,
+      name: contacts.name,
+      frequency: contacts.keepInTouchFrequency,
+      lastNoteAt: lastNotes.lastNoteAt,
+      since: contacts.keepInTouchSince,
+    })
+    .from(contacts)
+    .leftJoin(lastNotes, eq(lastNotes.contactId, contacts.id))
+    .where(and(isNotNull(contacts.keepInTouchFrequency), sql`${dueAt} < now()`))
+    .orderBy(sql`${dueAt}`, asc(contacts.name), asc(contacts.id));
+
+  // Both are set together, so a contact with a frequency always has "since"
+  return rows.map((row) => ({
+    ...row,
+    frequency: row.frequency!,
+    since: row.since!,
+  }));
 }
 
 // The contact's notes are deleted by the database too (on delete cascade).
