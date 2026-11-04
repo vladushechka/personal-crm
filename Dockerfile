@@ -14,9 +14,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm-store \
     pnpm install --frozen-lockfile --store-dir /pnpm-store
 
 COPY . .
-# The app reads database settings when its modules load, but connects only on the first query.
-# Pages are rendered per request, so the build never queries: placeholders are enough here.
-RUN POSTGRES_USER=build POSTGRES_PASSWORD=build POSTGRES_DB=build pnpm build
+RUN pnpm build
 
 FROM node:24-slim
 ENV NODE_ENV=production \
