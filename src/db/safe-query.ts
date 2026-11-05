@@ -1,26 +1,32 @@
-import { DrizzleQueryError } from "drizzle-orm";
-
-// Fields of a Postgres error that name the failure, never the data. Its "message" and "detail"
+// Fields of a database error that name the failure, never the data. Its "message" and "detail"
 // can quote the row being saved
 const safeFields = ["code", "table_name", "column_name", "constraint_name"] as const;
 
-function describeFailure(error: DrizzleQueryError) {
-  const cause = error.cause as Partial<Record<(typeof safeFields)[number], string>> | undefined;
+type QueryFailure = {
+  query?: unknown;
+  cause?: Record<string, unknown>;
+};
+
+function describeFailure(error: unknown) {
+  const failure = (error ?? {}) as QueryFailure & Record<string, unknown>;
+  const source = failure.cause ?? failure;
   const details = safeFields
-    .filter((field) => cause?.[field])
-    .map((field) => `${field}=${cause?.[field]}`);
+    .filter((field) => typeof source[field] === "string")
+    .map((field) => `${field}=${source[field]}`);
   // The query text has $1, $2 in place of values
-  return `Database query failed: ${details.join(" ")}\nquery: ${error.query}`;
+  const query = typeof failure.query === "string" ? `\nquery: ${failure.query}` : "";
+  return `Database query failed: ${details.join(" ")}${query}`;
 }
 
 // Drizzle puts a failed query's values into its error, and server logs print that: names, phones,
-// note texts. Every query that sends text typed by the user goes through this function
+// note texts. Every query that sends text typed by the user goes through this function.
+// It replaces any error, without "instanceof": each Next.js route bundles its own copy of Drizzle,
+// so the error class of the shared connection may not be the one imported here
 export async function safely<T>(query: PromiseLike<T>): Promise<T> {
   try {
     return await query;
   } catch (error) {
-    // No "cause": logs would print the Postgres error with its "detail" too
-    if (error instanceof DrizzleQueryError) throw new Error(describeFailure(error));
-    throw error;
+    // No "cause": logs would print the original error with its values too
+    throw new Error(describeFailure(error));
   }
 }

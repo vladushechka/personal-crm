@@ -31,12 +31,11 @@ function frequencySelect(page: Page) {
 }
 
 async function setFrequency(page: Page, label: string) {
-  const select = frequencySelect(page);
+  await frequencySelect(page).click();
   await Promise.all([
     page.waitForResponse((response) => response.request().method() === "POST"),
-    select.selectOption({ label }),
+    page.getByRole("option", { name: label }).click(),
   ]);
-  await expect(select).toBeEnabled();
 }
 
 async function addNote(page: Page, body: string) {
@@ -82,15 +81,39 @@ test("there is no block while nobody is due", async ({ page }) => {
 
 test("the frequency is saved on choosing it and 'Не задано' clears it", async ({ page }) => {
   await addContact(page, uniqueName("Частота"));
-  await expect(frequencySelect(page)).toHaveValue("");
+  await expect(frequencySelect(page)).toContainText("Не задано");
 
+  // The field shows the choice right away, and it is still there after a reload
   await setFrequency(page, "Раз в месяц");
+  await expect(frequencySelect(page)).toContainText("Раз в месяц");
+  await page.waitForLoadState("networkidle");
+  await expect(frequencySelect(page)).toContainText("Раз в месяц");
   await page.reload();
-  await expect(frequencySelect(page)).toHaveValue("month");
+  await expect(frequencySelect(page)).toContainText("Раз в месяц");
+  await page.waitForLoadState("networkidle");
 
   await setFrequency(page, "Не задано");
+  await expect(frequencySelect(page)).toContainText("Не задано");
+  await page.waitForLoadState("networkidle");
+  await expect(frequencySelect(page)).toContainText("Не задано");
   await page.reload();
-  await expect(frequencySelect(page)).toHaveValue("");
+  await expect(frequencySelect(page)).toContainText("Не задано");
+});
+
+test("on a phone the list of frequencies opens under the field", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await addContact(page, uniqueName("Частота на телефоне"));
+  await setFrequency(page, "Раз в год");
+  await page.waitForLoadState("networkidle");
+
+  // The selected row is the last one, so a list lined up with it would go up over the card
+  const field = frequencySelect(page);
+  await field.scrollIntoViewIfNeeded();
+  await field.click();
+  const fieldBox = await field.boundingBox();
+  const listBox = await page.getByRole("listbox").boundingBox();
+  expect(listBox!.y).toBeGreaterThanOrEqual(fieldBox!.y + fieldBox!.height);
+  await page.keyboard.press("Escape");
 });
 
 test("changing the frequency of a contact deleted in another tab says it is not found", async ({
