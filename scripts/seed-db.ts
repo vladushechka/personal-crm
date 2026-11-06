@@ -1,9 +1,10 @@
 import { sql } from "drizzle-orm";
 
 import type { Db } from "../src/db/client";
-import { contacts, notes } from "../src/db/schema";
+import { contactGroups, contacts, groups, notes } from "../src/db/schema";
 
 import { generateFakeContacts } from "./fake-contacts";
+import { fakeGroupNames, pickFakeGroupNames } from "./fake-groups";
 
 const CHUNK_SIZE = 500;
 
@@ -47,4 +48,28 @@ export async function assignFakeFrequencies(db: Db) {
     .where(sql`random() < 0.1`)
     .returning({ id: contacts.id });
   return updated.length;
+}
+
+// Creates the fake groups and puts about a third of the contacts in them
+export async function assignFakeGroups(db: Db) {
+  return db.transaction(async (tx) => {
+    const created = await tx
+      .insert(groups)
+      .values(fakeGroupNames.map((name) => ({ name })))
+      .returning();
+    const groupIds = new Map(created.map(({ id, name }) => [name, id]));
+
+    const people = await tx.select({ id: contacts.id }).from(contacts);
+    const members = people.flatMap(({ id }) =>
+      pickFakeGroupNames().map((name) => ({ contactId: id, groupId: groupIds.get(name)! })),
+    );
+    for (let start = 0; start < members.length; start += CHUNK_SIZE) {
+      await tx.insert(contactGroups).values(members.slice(start, start + CHUNK_SIZE));
+    }
+
+    return {
+      groupCount: created.length,
+      contactCount: new Set(members.map(({ contactId }) => contactId)).size,
+    };
+  });
 }

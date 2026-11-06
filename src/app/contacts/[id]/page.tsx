@@ -4,13 +4,16 @@ import { Suspense } from "react";
 import { PencilIcon } from "lucide-react";
 
 import {
+  addContactToNewGroupAction,
   addNoteAction,
   deleteContactAction,
   deleteNoteAction,
+  setContactGroupAction,
   setKeepInTouchAction,
   updateNoteAction,
 } from "@/app/actions";
 import { BackLink } from "@/components/back-link";
+import { ContactGroups } from "@/components/contact-groups";
 import { DeleteContactButton } from "@/components/delete-contact-button";
 import { KeepInTouchSelect } from "@/components/keep-in-touch-select";
 import { NoteForm } from "@/components/note-form";
@@ -29,6 +32,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { parseContactId } from "@/lib/contact-schema";
 import { getContactWithNotes } from "@/lib/contacts";
 import { formatDateTime, pluralize } from "@/lib/format";
+import { listContactGroupIds, listGroups } from "@/lib/groups";
 
 export default function ContactPage({ params, searchParams }: PageProps<"/contacts/[id]">) {
   return (
@@ -45,7 +49,11 @@ async function ContactDetails({ params, searchParams }: PageProps<"/contacts/[id
   const contactId = parseContactId((await params).id);
   if (!contactId) notFound();
 
-  const contact = await getContactWithNotes(contactId);
+  const [contact, groups, groupIds] = await Promise.all([
+    getContactWithNotes(contactId),
+    listGroups(),
+    listContactGroupIds(contactId),
+  ]);
   if (!contact) notFound();
 
   // Set by the edit form after saving
@@ -121,6 +129,14 @@ async function ContactDetails({ params, searchParams }: PageProps<"/contacts/[id
               <KeepInTouchSelect
                 frequency={contact.keepInTouchFrequency}
                 action={setKeepInTouchAction.bind(null, contact.id)}
+              />
+            </div>
+            <div className="contents">
+              <ContactGroups
+                groups={groups}
+                groupIds={groupIds}
+                setGroupAction={setContactGroupAction.bind(null, contact.id)}
+                addToNewGroupAction={addContactToNewGroupAction.bind(null, contact.id)}
               />
             </div>
           </dl>

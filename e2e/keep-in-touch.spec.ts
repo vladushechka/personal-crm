@@ -49,6 +49,7 @@ async function addNote(page: Page, body: string) {
 async function openReachOut(page: Page) {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1, name: "Контакты" })).toBeVisible();
+  await page.waitForLoadState("networkidle");
   const showAll = page.getByRole("button", { name: /^Показать всех/ });
   if (await showAll.isVisible()) await showAll.click();
   return page.getByTestId("reach-out-row");
@@ -232,6 +233,8 @@ test("the block shows five people and opens the rest with 'Показать вс
   );
 
   await page.goto("/");
+  // The button reacts only after the page's scripts have loaded
+  await page.waitForLoadState("networkidle");
   const rows = page.getByTestId("reach-out-row");
   await expect(rows).toHaveCount(5);
   const showAll = page.getByRole("button", { name: /^Показать всех \(\d+\)$/ });

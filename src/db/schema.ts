@@ -1,5 +1,14 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  check,
+  index,
+  integer,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 
 // How often the user wants to talk to a contact
 export const keepInTouchFrequencies = ["week", "month", "quarter", "year"] as const;
@@ -42,6 +51,35 @@ export const notes = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("notes_contact_id_created_at_idx").on(table.contactId, table.createdAt)],
+);
+
+// A circle of people the user names themselves, e.g. "Семья" or "Теннис".
+// "Семья" and "семья" are one group: the database refuses a second one
+export const groups = pgTable(
+  "groups",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("groups_lower_name_idx").on(sql`lower(${table.name})`)],
+);
+
+// Who is in which group. Deleting a contact or a group removes its rows here
+export const contactGroups = pgTable(
+  "contact_groups",
+  {
+    contactId: integer("contact_id")
+      .notNull()
+      .references(() => contacts.id, { onDelete: "cascade" }),
+    groupId: integer("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.contactId, table.groupId] }),
+    index("contact_groups_group_id_idx").on(table.groupId),
+  ],
 );
 
 export type Contact = typeof contacts.$inferSelect;

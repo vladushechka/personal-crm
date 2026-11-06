@@ -21,10 +21,20 @@ import {
   updateContact,
   updateNote,
 } from "@/lib/contacts";
+import { groupNameSchema } from "@/lib/group-schema";
+import {
+  addContactToGroup,
+  addContactToNamedGroup,
+  deleteGroup,
+  groupExists,
+  removeContactFromGroup,
+  renameGroup,
+} from "@/lib/groups";
 import { frequencies } from "@/lib/keep-in-touch";
 
 const contactIdSchema = z.number().int().positive();
 const noteIdSchema = z.number().int().positive();
+const groupIdSchema = z.number().int().positive();
 // "" is "Не задано" in the form
 const frequencyInputSchema = z
   .union([z.literal(""), z.enum(frequencies)])
@@ -188,6 +198,102 @@ export async function setKeepInTouchAction(
   revalidatePath("/");
   refresh();
   return {};
+}
+
+export type ContactGroupState = {
+  error?: string;
+};
+
+export async function setContactGroupAction(
+  contactId: number,
+  groupId: number,
+  inGroup: boolean,
+): Promise<ContactGroupState> {
+  if (!contactIdSchema.safeParse(contactId).success || !(await contactExists(contactId))) {
+    return { error: "Контакт не найден" };
+  }
+  if (!groupIdSchema.safeParse(groupId).success || !(await groupExists(groupId))) {
+    return { error: "Группа не найдена" };
+  }
+
+  if (inGroup) {
+    await addContactToGroup(contactId, groupId);
+  } else {
+    await removeContactFromGroup(contactId, groupId);
+  }
+
+  // The list shows a contact's groups and how many people each group has
+  revalidatePath("/");
+  refresh();
+  return {};
+}
+
+export type NewGroupState = {
+  error?: string;
+  // Submitted text, so the form keeps it when saving fails
+  name?: string;
+};
+
+export async function addContactToNewGroupAction(
+  contactId: number,
+  _prevState: NewGroupState,
+  formData: FormData,
+): Promise<NewGroupState> {
+  const name = String(formData.get("name") ?? "");
+
+  const parsed = groupNameSchema.safeParse(name);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message, name };
+  }
+  if (!contactIdSchema.safeParse(contactId).success || !(await contactExists(contactId))) {
+    return { error: "Контакт не найден", name };
+  }
+
+  await addContactToNamedGroup(contactId, parsed.data);
+
+  revalidatePath("/");
+  refresh();
+  return {};
+}
+
+export type RenameGroupState = {
+  error?: string;
+  // Submitted text, so the form keeps it when saving fails
+  name?: string;
+  // Tells the form to close: the name is saved
+  saved?: boolean;
+};
+
+export async function renameGroupAction(
+  groupId: number,
+  _prevState: RenameGroupState,
+  formData: FormData,
+): Promise<RenameGroupState> {
+  const name = String(formData.get("name") ?? "");
+
+  const parsed = groupNameSchema.safeParse(name);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message, name };
+  }
+
+  const result = groupIdSchema.safeParse(groupId).success
+    ? await renameGroup(groupId, parsed.data)
+    : "not-found";
+  if (result === "taken") return { error: "Такая группа уже есть", name };
+  if (result === "not-found") return { error: "Группа не найдена", name };
+
+  revalidatePath("/");
+  refresh();
+  return { saved: true };
+}
+
+export async function deleteGroupAction(groupId: number): Promise<void> {
+  // Already deleted (e.g. in another browser): the refreshed page just doesn't show it
+  if (groupIdSchema.safeParse(groupId).success) {
+    await deleteGroup(groupId);
+  }
+  revalidatePath("/");
+  refresh();
 }
 
 export async function deleteContactAction(contactId: number): Promise<void> {

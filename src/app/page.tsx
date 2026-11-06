@@ -4,6 +4,7 @@ import { PlusIcon, SearchXIcon, UsersIcon } from "lucide-react";
 
 import { ContactList, contactRowId } from "@/components/contact-list";
 import { ContactSearch } from "@/components/contact-search";
+import { GroupFilter } from "@/components/group-filter";
 import { ReachOutBlock, type ReachOutRow } from "@/components/reach-out-block";
 import { ScrollIntoView } from "@/components/scroll-into-view";
 import { buttonVariants } from "@/components/ui/button";
@@ -23,6 +24,7 @@ import {
   type ContactToReachOut,
 } from "@/lib/contacts";
 import { formatDate, pluralize } from "@/lib/format";
+import { listGroupNamesByContact, listGroups } from "@/lib/groups";
 import { frequencyLabels } from "@/lib/keep-in-touch";
 
 const CONTACT_WORDS: [string, string, string] = ["контакт", "контакта", "контактов"];
@@ -55,12 +57,22 @@ async function Contacts({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
   const addedId = Number.parseInt(firstValue(params.added), 10) || undefined;
   const deletedName = firstValue(params.deleted);
 
-  // The "Пора связаться" block is hidden while searching
-  const [contacts, total, toReachOut] = await Promise.all([
-    listContacts(query),
+  const groups = await listGroups();
+  // The address of a group deleted meanwhile just shows all contacts
+  const group = groups.find(({ id }) => String(id) === firstValue(params.group));
+
+  // The "Пора связаться" block covers the whole list, so it is hidden while narrowing it down
+  const [contacts, allContactsCount, groupNames, toReachOut] = await Promise.all([
+    listContacts(query, group?.id),
     countContacts(),
-    query ? [] : listContactsToReachOut(),
+    listGroupNamesByContact(),
+    query || group ? [] : listContactsToReachOut(),
   ]);
+  const total = group ? group.contactCount : allContactsCount;
+  const rows = contacts.map((contact) => ({
+    ...contact,
+    groupNames: groupNames.get(contact.id) ?? [],
+  }));
 
   return (
     <>
@@ -73,10 +85,14 @@ async function Contacts({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
         </p>
       )}
 
+      {groups.length > 0 && (
+        <GroupFilter groups={groups} selectedId={group?.id} query={query} />
+      )}
+
       {toReachOut.length > 0 && <ReachOutBlock rows={toReachOut.map(toReachOutRow)} />}
 
       <div className="sticky top-0 z-10 -mx-6 bg-background/90 px-6 pt-2 pb-3 backdrop-blur-md">
-        <ContactSearch defaultValue={query} />
+        <ContactSearch defaultValue={query} groupId={group?.id} />
         <p className="mt-2 text-sm text-muted-foreground" aria-live="polite">
           {query
             ? `Найдено: ${contacts.length} из ${total}`
@@ -84,12 +100,14 @@ async function Contacts({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
         </p>
       </div>
 
-      {total === 0 ? (
+      {allContactsCount === 0 ? (
         <NoContacts />
+      ) : total === 0 ? (
+        <EmptyGroup />
       ) : contacts.length === 0 ? (
         <NothingFound query={query} />
       ) : (
-        <ContactList contacts={contacts} highlightId={addedId} />
+        <ContactList contacts={rows} highlightId={addedId} />
       )}
 
       {addedId && <ScrollIntoView elementId={contactRowId(addedId)} />}
@@ -140,6 +158,20 @@ function NoContacts() {
           Добавить контакт
         </Link>
       </EmptyContent>
+    </Empty>
+  );
+}
+
+function EmptyGroup() {
+  return (
+    <Empty className="bg-card ring-1 ring-foreground/10">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <UsersIcon />
+        </EmptyMedia>
+        <EmptyTitle>В этой группе пока никого</EmptyTitle>
+        <EmptyDescription>Людей в группу добавляют в карточке контакта.</EmptyDescription>
+      </EmptyHeader>
     </Empty>
   );
 }
