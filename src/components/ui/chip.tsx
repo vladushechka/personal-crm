@@ -1,4 +1,4 @@
-import { cva } from "class-variance-authority"
+import { cva } from "class-variance-authority";
 
 // A rounded label for groups: a link or a button on the list and in the card
 const chipVariants = cva(
@@ -13,7 +13,7 @@ const chipVariants = cva(
     defaultVariants: {
       active: false,
     },
-  }
-)
+  },
+);
 
-export { chipVariants }
+export { chipVariants };

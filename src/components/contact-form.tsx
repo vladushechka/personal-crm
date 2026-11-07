@@ -20,11 +20,33 @@ type FieldConfig = {
 };
 
 const FIELDS: FieldConfig[] = [
-  { name: "name", label: "Имя", placeholder: "Например: Анна Смирнова", autoComplete: "off", required: true },
+  {
+    name: "name",
+    label: "Имя",
+    placeholder: "Например: Анна Смирнова",
+    autoComplete: "off",
+    required: true,
+  },
   { name: "about", label: "Кто это", placeholder: "Например: бывшая коллега, дизайнер" },
-  { name: "howWeMet", label: "Откуда знакомы", placeholder: "Например: учились вместе в университете" },
-  { name: "phone", label: "Телефон", type: "tel", placeholder: "+7 900 123-45-67", autoComplete: "off" },
-  { name: "email", label: "Почта", type: "email", placeholder: "anna@example.com", autoComplete: "off" },
+  {
+    name: "howWeMet",
+    label: "Откуда знакомы",
+    placeholder: "Например: учились вместе в университете",
+  },
+  {
+    name: "phone",
+    label: "Телефон",
+    type: "tel",
+    placeholder: "+7 900 123-45-67",
+    autoComplete: "off",
+  },
+  {
+    name: "email",
+    label: "Почта",
+    type: "email",
+    placeholder: "anna@example.com",
+    autoComplete: "off",
+  },
 ];
 
 const initialState: ContactFormState = {};

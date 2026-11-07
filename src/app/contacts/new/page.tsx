@@ -20,7 +20,11 @@ export default function NewContactPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <ContactForm action={createContactAction} submitLabel="Сохранить контакт" cancelHref="/" />
+          <ContactForm
+            action={createContactAction}
+            submitLabel="Сохранить контакт"
+            cancelHref="/"
+          />
         </CardContent>
       </Card>
     </main>

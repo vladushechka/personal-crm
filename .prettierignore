@@ -1,0 +1,8 @@
+# Written by tools
+pnpm-lock.yaml
+drizzle/meta/
+
+# Prose and generated pages: specs, course notes, README
+*.md
+openspec/
+.claude/skills/

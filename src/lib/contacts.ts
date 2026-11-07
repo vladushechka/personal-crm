@@ -117,7 +117,11 @@ export async function addNote(contactId: number, body: string): Promise<void> {
 
 // The date stays the original one, so the note keeps its place in the list.
 // Returns false if the contact has no such note (e.g. it was deleted in another browser)
-export async function updateNote(contactId: number, noteId: number, body: string): Promise<boolean> {
+export async function updateNote(
+  contactId: number,
+  noteId: number,
+  body: string,
+): Promise<boolean> {
   const [row] = await safely(
     getDb()
       .update(notes)
@@ -129,7 +133,9 @@ export async function updateNote(contactId: number, noteId: number, body: string
 }
 
 export async function deleteNote(contactId: number, noteId: number): Promise<void> {
-  await getDb().delete(notes).where(and(eq(notes.id, noteId), eq(notes.contactId, contactId)));
+  await getDb()
+    .delete(notes)
+    .where(and(eq(notes.id, noteId), eq(notes.contactId, contactId)));
 }
 
 // A new frequency restarts the countdown for a contact without notes; null clears both.

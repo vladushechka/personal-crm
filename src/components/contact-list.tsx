@@ -56,13 +56,7 @@ export function ContactList({
   );
 }
 
-function ContactRow({
-  contact,
-  highlighted,
-}: {
-  contact: ContactRowData;
-  highlighted: boolean;
-}) {
+function ContactRow({ contact, highlighted }: { contact: ContactRowData; highlighted: boolean }) {
   const details = [contact.about, contact.howWeMet].filter(Boolean).join(" · ");
 
   return (

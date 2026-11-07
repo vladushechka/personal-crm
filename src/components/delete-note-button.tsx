@@ -20,20 +20,17 @@ import { Spinner } from "@/components/ui/spinner";
 const PREVIEW_LENGTH = 80;
 
 // Deletes the note only after the user confirms it in a dialog
-export function DeleteNoteButton({
-  body,
-  action,
-}: {
-  body: string;
-  action: () => Promise<void>;
-}) {
+export function DeleteNoteButton({ body, action }: { body: string; action: () => Promise<void> }) {
   const [pending, startTransition] = useTransition();
-  const preview = body.length > PREVIEW_LENGTH ? `${body.slice(0, PREVIEW_LENGTH).trimEnd()}…` : body;
+  const preview =
+    body.length > PREVIEW_LENGTH ? `${body.slice(0, PREVIEW_LENGTH).trimEnd()}…` : body;
 
   return (
     <AlertDialog>
       <AlertDialogTrigger
-        render={<Button variant="ghost" size="icon-sm" aria-label="Удалить заметку" title="Удалить" />}
+        render={
+          <Button variant="ghost" size="icon-sm" aria-label="Удалить заметку" title="Удалить" />
+        }
       >
         <Trash2Icon />
       </AlertDialogTrigger>

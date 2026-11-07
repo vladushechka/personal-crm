@@ -11,11 +11,7 @@ function optionalText(max: number) {
 }
 
 export const contactInputSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, "Укажите имя")
-    .max(200, "Слишком длинно: не больше 200 символов"),
+  name: z.string().trim().min(1, "Укажите имя").max(200, "Слишком длинно: не больше 200 символов"),
   about: optionalText(500),
   howWeMet: optionalText(500),
   phone: optionalText(50),
@@ -32,7 +28,13 @@ export const contactInputSchema = z.object({
 export type ContactInput = z.output<typeof contactInputSchema>;
 export type ContactField = keyof ContactInput;
 
-export const contactFields = ["name", "about", "howWeMet", "phone", "email"] as const satisfies readonly ContactField[];
+export const contactFields = [
+  "name",
+  "about",
+  "howWeMet",
+  "phone",
+  "email",
+] as const satisfies readonly ContactField[];
 
 const MAX_CONTACT_ID = 2_147_483_647; // Postgres integer
 

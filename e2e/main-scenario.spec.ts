@@ -98,7 +98,9 @@ test("delete a contact from its card after confirming", async ({ page }) => {
   await page.getByRole("button", { name: "Удалить", exact: true }).click();
   await dialog.getByRole("button", { name: "Удалить" }).click();
   await expect(page).toHaveURL(/\/\?deleted=/);
-  await expect(page.getByRole("status").filter({ hasText: `Контакт «${name}» удалён` })).toBeVisible();
+  await expect(
+    page.getByRole("status").filter({ hasText: `Контакт «${name}» удалён` }),
+  ).toBeVisible();
   await expect(page.getByTestId("contact-row").filter({ hasText: name })).toHaveCount(0);
 
   await page.goto(cardUrl);

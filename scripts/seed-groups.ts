@@ -22,7 +22,9 @@ async function main() {
     }
 
     const result = await assignFakeGroups(db);
-    console.log(`Created ${result.groupCount} groups, ${result.contactCount} contacts are in them.`);
+    console.log(
+      `Created ${result.groupCount} groups, ${result.contactCount} contacts are in them.`,
+    );
   } finally {
     await client.end();
   }

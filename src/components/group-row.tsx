@@ -10,10 +10,7 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 
-type RenameAction = (
-  prevState: RenameGroupState,
-  formData: FormData,
-) => Promise<RenameGroupState>;
+type RenameAction = (prevState: RenameGroupState, formData: FormData) => Promise<RenameGroupState>;
 
 // One group on the "Группы" page: its name, or a form to rename it in place
 export function GroupRow({
@@ -30,9 +27,7 @@ export function GroupRow({
   const [renaming, setRenaming] = useState(false);
 
   if (renaming) {
-    return (
-      <RenameGroupForm name={name} action={renameAction} onClose={() => setRenaming(false)} />
-    );
+    return <RenameGroupForm name={name} action={renameAction} onClose={() => setRenaming(false)} />;
   }
 
   return (

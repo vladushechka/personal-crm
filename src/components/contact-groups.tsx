@@ -70,10 +70,7 @@ export function ContactGroups({
                 </button>
               );
             })}
-            <Link
-              href="/groups"
-              className="text-sm text-accent underline-offset-4 hover:underline"
-            >
+            <Link href="/groups" className="text-sm text-accent underline-offset-4 hover:underline">
               Все группы
             </Link>
           </div>

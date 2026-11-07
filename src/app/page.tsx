@@ -85,18 +85,14 @@ async function Contacts({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
         </p>
       )}
 
-      {groups.length > 0 && (
-        <GroupFilter groups={groups} selectedId={group?.id} query={query} />
-      )}
+      {groups.length > 0 && <GroupFilter groups={groups} selectedId={group?.id} query={query} />}
 
       {toReachOut.length > 0 && <ReachOutBlock rows={toReachOut.map(toReachOutRow)} />}
 
       <div className="sticky top-0 z-10 -mx-6 bg-background/90 px-6 pt-2 pb-3 backdrop-blur-md">
         <ContactSearch defaultValue={query} groupId={group?.id} />
         <p className="mt-2 text-sm text-muted-foreground" aria-live="polite">
-          {query
-            ? `Найдено: ${contacts.length} из ${total}`
-            : pluralize(total, CONTACT_WORDS)}
+          {query ? `Найдено: ${contacts.length} из ${total}` : pluralize(total, CONTACT_WORDS)}
         </p>
       </div>
 

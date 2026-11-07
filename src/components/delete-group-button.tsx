@@ -18,19 +18,15 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
 // Deletes the group only after the user confirms it in a dialog
-export function DeleteGroupButton({
-  name,
-  action,
-}: {
-  name: string;
-  action: () => Promise<void>;
-}) {
+export function DeleteGroupButton({ name, action }: { name: string; action: () => Promise<void> }) {
   const [pending, startTransition] = useTransition();
 
   return (
     <AlertDialog>
       <AlertDialogTrigger
-        render={<Button variant="ghost" size="icon-sm" aria-label="Удалить группу" title="Удалить" />}
+        render={
+          <Button variant="ghost" size="icon-sm" aria-label="Удалить группу" title="Удалить" />
+        }
       >
         <Trash2Icon />
       </AlertDialogTrigger>

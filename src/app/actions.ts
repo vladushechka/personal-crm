@@ -188,8 +188,7 @@ export async function setKeepInTouchAction(
   }
 
   const updated =
-    contactIdSchema.safeParse(contactId).success &&
-    (await setKeepInTouch(contactId, parsed.data));
+    contactIdSchema.safeParse(contactId).success && (await setKeepInTouch(contactId, parsed.data));
   if (!updated) {
     return { error: "Контакт не найден" };
   }

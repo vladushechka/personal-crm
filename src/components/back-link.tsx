@@ -5,7 +5,10 @@ import { buttonVariants } from "@/components/ui/button";
 
 export function BackLink() {
   return (
-    <Link href="/" className={buttonVariants({ variant: "ghost", className: "-ml-3 text-muted-foreground" })}>
+    <Link
+      href="/"
+      className={buttonVariants({ variant: "ghost", className: "-ml-3 text-muted-foreground" })}
+    >
       <ArrowLeftIcon />
       Все контакты
     </Link>

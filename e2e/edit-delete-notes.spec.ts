@@ -83,7 +83,9 @@ test("delete a note: only after confirmation, other notes stay", async ({ page }
   await addNote(page, "Эта заметка удалится");
 
   // "Отмена" in the dialog keeps the note
-  await noteWith(page, "Эта заметка удалится").getByRole("button", { name: "Удалить заметку" }).click();
+  await noteWith(page, "Эта заметка удалится")
+    .getByRole("button", { name: "Удалить заметку" })
+    .click();
   const dialog = page.getByRole("alertdialog");
   await expect(dialog).toContainText("Удалить заметку?");
   await expect(dialog).toContainText("«Эта заметка удалится»");
@@ -93,7 +95,9 @@ test("delete a note: only after confirmation, other notes stay", async ({ page }
   await expect(page.getByTestId("note")).toHaveCount(2);
 
   // Confirming deletes only this note
-  await noteWith(page, "Эта заметка удалится").getByRole("button", { name: "Удалить заметку" }).click();
+  await noteWith(page, "Эта заметка удалится")
+    .getByRole("button", { name: "Удалить заметку" })
+    .click();
   await dialog.getByRole("button", { name: "Удалить" }).click();
   await expect(page.getByTestId("note")).toHaveCount(1);
   await expect(noteWith(page, "Эта заметка останется")).toHaveCount(1);
@@ -106,7 +110,9 @@ test("delete a note: only after confirmation, other notes stay", async ({ page }
 test("saving a note deleted in another tab says it is not found", async ({ page }) => {
   await openNewContactCard(page, `Заметка в двух вкладках ${Date.now().toString(36)}`);
   await addNote(page, "Заметка, которую удалят в другой вкладке");
-  await noteWith(page, "Заметка, которую удалят").getByRole("button", { name: "Изменить заметку" }).click();
+  await noteWith(page, "Заметка, которую удалят")
+    .getByRole("button", { name: "Изменить заметку" })
+    .click();
   await page.getByRole("textbox", { name: "Текст заметки" }).fill("Новый текст");
 
   const otherTab = await page.context().newPage();
