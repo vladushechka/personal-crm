@@ -82,6 +82,16 @@ pnpm start
 
 `pnpm test:e2e` работает с отдельной базой `personal_crm_e2e` и пересоздаёт её при каждом запуске - ваши контакты не затрагиваются.
 
+### Автопроверка на GitHub
+
+На каждый PR в `main` GitHub сам запускает проверку (`.github/workflows/ci.yml`, вкладка Checks в PR):
+
+- `checks` - оформление кода (`pnpm lint`, `pnpm format:check`), типы, быстрые тесты
+- `e2e` - браузерные тесты на собранном приложении, как на сервере
+- `image` - образ приложения собирается
+
+`main` защищена: PR вливается, только когда все три зелёные, и тогда вливается сам. Красный PR не влить даже руками.
+
 ## Выкатка
 
 Адрес: https://app.vladmath.com
@@ -138,4 +148,5 @@ bash /opt/crm/prod/deploy.sh "$(cat /opt/crm/prod/previous-image)"
 
 - `pnpm dev` - режим разработки, страницы обновляются при изменении кода
 - `pnpm typecheck`, `pnpm lint` - проверка кода
+- `pnpm format` - выровнять оформление кода (Prettier); `pnpm format:check` - только проверить, как в автопроверке
 - После изменения схемы в `src/db/schema.ts`: `pnpm db:generate`, затем `pnpm db:migrate`
