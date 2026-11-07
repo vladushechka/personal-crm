@@ -1,5 +1,5 @@
 # Production stack on the server, docker compose project "prod".
-# CI copies this file and deploy.sh to /opt/crm/prod; deploy.sh runs it.
+# CI copies the whole deploy/ folder to /opt/crm/prod; deploy.sh runs it.
 # Secrets come from /opt/crm/prod/.env (chmod 600, written by hand on the server).
 # APP_IMAGE is set by deploy.sh; the running one is recorded in /opt/crm/prod/current-image.
 
