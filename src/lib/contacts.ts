@@ -13,6 +13,7 @@ import {
 } from "@/db/schema";
 
 import type { ContactInput } from "./contact-schema";
+import { pickContactsToReachOut, type ContactToReachOut } from "./keep-in-touch";
 
 export type ContactListItem = {
   id: number;
@@ -155,15 +156,7 @@ export async function setKeepInTouch(
   return Boolean(row);
 }
 
-export type ContactToReachOut = {
-  id: number;
-  name: string;
-  frequency: KeepInTouchFrequency;
-  lastNoteAt: Date | null;
-  since: Date;
-};
-
-// Contacts whose time to talk has passed; the earliest due date, i.e. the most days overdue, first
+// Contacts whose time to talk has passed, the most overdue first (rules in keep-in-touch.ts)
 export async function listContactsToReachOut(): Promise<ContactToReachOut[]> {
   // Date of each contact's latest note
   const lastNotes = getDb()
@@ -171,15 +164,6 @@ export async function listContactsToReachOut(): Promise<ContactToReachOut[]> {
     .from(notes)
     .groupBy(notes.contactId)
     .as("last_notes");
-
-  // The last conversation is the latest note, or the day the frequency was chosen if there are
-  // no notes. Months, quarters and years are calendar ones, as Postgres interval arithmetic does
-  const dueAt = sql`coalesce(${lastNotes.lastNoteAt}, ${contacts.keepInTouchSince}) + case ${contacts.keepInTouchFrequency}
-    when 'week' then interval '7 days'
-    when 'month' then interval '1 month'
-    when 'quarter' then interval '3 months'
-    when 'year' then interval '1 year'
-  end`;
 
   const rows = await getDb()
     .select({
@@ -191,15 +175,15 @@ export async function listContactsToReachOut(): Promise<ContactToReachOut[]> {
     })
     .from(contacts)
     .leftJoin(lastNotes, eq(lastNotes.contactId, contacts.id))
-    .where(and(isNotNull(contacts.keepInTouchFrequency), sql`${dueAt} < now()`))
-    .orderBy(sql`${dueAt}`, asc(contacts.name), asc(contacts.id));
+    .where(isNotNull(contacts.keepInTouchFrequency));
 
   // Both are set together, so a contact with a frequency always has "since"
-  return rows.map((row) => ({
+  const withFrequency = rows.map((row) => ({
     ...row,
     frequency: row.frequency!,
     since: row.since!,
   }));
+  return pickContactsToReachOut(withFrequency, new Date());
 }
 
 // The contact's notes are deleted by the database too (on delete cascade).

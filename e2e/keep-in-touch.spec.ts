@@ -5,6 +5,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { eq, sql } from "drizzle-orm";
 
 import { contacts, notes } from "../src/db/schema";
+import { formatDate } from "../src/lib/format";
 
 import { withTestDb } from "./test-db";
 
@@ -55,22 +56,28 @@ async function openReachOut(page: Page) {
   return page.getByTestId("reach-out-row");
 }
 
+// Returns the new date of the notes
 async function moveNotesBack(contactId: number, interval: string) {
-  await withTestDb((db) =>
+  const [moved] = await withTestDb((db) =>
     db
       .update(notes)
       .set({ createdAt: sql`now() - ${interval}::interval` })
-      .where(eq(notes.contactId, contactId)),
+      .where(eq(notes.contactId, contactId))
+      .returning({ createdAt: notes.createdAt }),
   );
+  return moved.createdAt;
 }
 
+// Returns the new date the frequency was chosen
 async function moveFrequencyChoiceBack(contactId: number, interval: string) {
-  await withTestDb((db) =>
+  const [moved] = await withTestDb((db) =>
     db
       .update(contacts)
       .set({ keepInTouchSince: sql`now() - ${interval}::interval` })
-      .where(eq(contacts.id, contactId)),
+      .where(eq(contacts.id, contactId))
+      .returning({ since: contacts.keepInTouchSince }),
   );
+  return moved.since!;
 }
 
 test("there is no block while nobody is due", async ({ page }) => {
@@ -80,8 +87,11 @@ test("there is no block while nobody is due", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Пора связаться" })).toHaveCount(0);
 });
 
-test("the frequency is saved on choosing it and 'Не задано' clears it", async ({ page }) => {
-  await addContact(page, uniqueName("Частота"));
+test("the frequency is saved on choosing it, and 'Не задано' clears it and takes the contact out of the block", async ({
+  page,
+}) => {
+  const name = uniqueName("Частота");
+  const id = await addContact(page, name);
   await expect(frequencySelect(page)).toContainText("Не задано");
 
   // The field shows the choice right away, and it is still there after a reload
@@ -91,6 +101,11 @@ test("the frequency is saved on choosing it and 'Не задано' clears it", 
   await expect(frequencySelect(page)).toContainText("Раз в месяц");
   await page.reload();
   await expect(frequencySelect(page)).toContainText("Раз в месяц");
+
+  // Two months later it is time to talk
+  await moveFrequencyChoiceBack(id, "2 months");
+  await expect((await openReachOut(page)).filter({ hasText: name })).toHaveCount(1);
+  await page.goto(`/contacts/${id}`);
   await page.waitForLoadState("networkidle");
 
   await setFrequency(page, "Не задано");
@@ -99,6 +114,7 @@ test("the frequency is saved on choosing it and 'Не задано' clears it", 
   await expect(frequencySelect(page)).toContainText("Не задано");
   await page.reload();
   await expect(frequencySelect(page)).toContainText("Не задано");
+  await expect((await openReachOut(page)).filter({ hasText: name })).toHaveCount(0);
 });
 
 test("on a phone the list of frequencies opens under the field", async ({ page }) => {
@@ -142,14 +158,14 @@ test("a new note restarts the countdown; editing an old one doesn't; deleting th
   const name = uniqueName("Давно не общались");
   const id = await addContact(page, name);
   await addNote(page, "Старый разговор");
-  await moveNotesBack(id, "2 months");
+  const noteDate = await moveNotesBack(id, "2 months");
   await page.reload();
 
   // An old note: in the block right after choosing the frequency
   await setFrequency(page, "Раз в месяц");
   let row = (await openReachOut(page)).filter({ hasText: name });
   await expect(row).toHaveCount(1);
-  await expect(row).toContainText("Раз в месяц · последняя заметка");
+  await expect(row).toContainText(`Раз в месяц · последняя заметка ${formatDate(noteDate)}`);
 
   // Editing the old note is not a conversation
   await row.getByRole("link").click();
@@ -190,10 +206,12 @@ test("without notes the countdown starts when the frequency is chosen, and again
   await setFrequency(page, "Раз в неделю");
   await expect((await openReachOut(page)).filter({ hasText: name })).toHaveCount(0);
 
-  await moveFrequencyChoiceBack(id, "8 days");
+  const since = await moveFrequencyChoiceBack(id, "8 days");
   const row = (await openReachOut(page)).filter({ hasText: name });
   await expect(row).toHaveCount(1);
-  await expect(row).toContainText("Раз в неделю · заметок нет, частота задана");
+  await expect(row).toContainText(
+    `Раз в неделю · заметок нет, частота задана ${formatDate(since)}`,
+  );
 
   await page.goto(`/contacts/${id}`);
   await page.waitForLoadState("networkidle");
@@ -224,27 +242,38 @@ test("the most overdue are on top, and the block is hidden while searching", asy
   await expect(page.getByRole("heading", { name: "Пора связаться" })).toHaveCount(0);
 });
 
-test("the block shows five people and opens the rest with 'Показать всех'", async ({ page }) => {
+test("the block shows the five most overdue and opens the rest in the same order", async ({
+  page,
+}) => {
+  // Overdue far longer than anyone else in the test database, so they top the block:
+  // each next one by a day more
+  const prefix = uniqueName("Много просроченных");
+  const names = Array.from({ length: 6 }, (_, index) => `${prefix} ${index + 1}`);
   await withTestDb((db) =>
     db.insert(contacts).values(
-      Array.from({ length: 6 }, (_, index) => ({
-        name: uniqueName(`Много просроченных ${index + 1}`),
+      names.map((name, index) => ({
+        name,
         keepInTouchFrequency: "week" as const,
-        keepInTouchSince: sql`now() - interval '30 days'`,
+        keepInTouchSince: sql`now() - ${`${3650 + index} days`}::interval`,
       })),
     ),
   );
+  const mostOverdueFirst = [...names].reverse();
 
   await page.goto("/");
   // The button reacts only after the page's scripts have loaded
   await page.waitForLoadState("networkidle");
   const rows = page.getByTestId("reach-out-row");
+  const rowNames = () => rows.locator("span:first-child").allTextContents();
   await expect(rows).toHaveCount(5);
+  expect(await rowNames()).toEqual(mostOverdueFirst.slice(0, 5));
+
   const showAll = page.getByRole("button", { name: /^Показать всех \(\d+\)$/ });
   const total = Number((await showAll.textContent())?.match(/\d+/)?.[0]);
   expect(total).toBeGreaterThanOrEqual(6);
 
   await showAll.click();
   await expect(rows).toHaveCount(total);
+  expect((await rowNames()).slice(0, 6)).toEqual(mostOverdueFirst);
   await expect(showAll).toBeHidden();
 });

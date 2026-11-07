@@ -17,15 +17,10 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  countContacts,
-  listContacts,
-  listContactsToReachOut,
-  type ContactToReachOut,
-} from "@/lib/contacts";
-import { formatDate, pluralize } from "@/lib/format";
+import { countContacts, listContacts, listContactsToReachOut } from "@/lib/contacts";
+import { pluralize } from "@/lib/format";
 import { listGroupNamesByContact, listGroups } from "@/lib/groups";
-import { frequencyLabels } from "@/lib/keep-in-touch";
+import { describeReachOut, type ContactToReachOut } from "@/lib/keep-in-touch";
 
 const CONTACT_WORDS: [string, string, string] = ["контакт", "контакта", "контактов"];
 
@@ -113,14 +108,7 @@ async function Contacts({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
 
 // Dates are formatted here, on the server, so the browser shows the same text
 function toReachOutRow(contact: ContactToReachOut): ReachOutRow {
-  const lastTalk = contact.lastNoteAt
-    ? `последняя заметка ${formatDate(contact.lastNoteAt)}`
-    : `заметок нет, частота задана ${formatDate(contact.since)}`;
-  return {
-    id: contact.id,
-    name: contact.name,
-    details: `${frequencyLabels[contact.frequency]} · ${lastTalk}`,
-  };
+  return { id: contact.id, name: contact.name, details: describeReachOut(contact) };
 }
 
 function ContactsFallback() {
