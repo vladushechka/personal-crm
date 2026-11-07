@@ -49,6 +49,7 @@ async function addNote(page: Page, body: string) {
 async function openReachOut(page: Page) {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1, name: "Контакты" })).toBeVisible();
+  await page.waitForLoadState("networkidle");
   const showAll = page.getByRole("button", { name: /^Показать всех/ });
   if (await showAll.isVisible()) await showAll.click();
   return page.getByTestId("reach-out-row");
@@ -111,8 +112,11 @@ test("on a phone the list of frequencies opens under the field", async ({ page }
   await field.scrollIntoViewIfNeeded();
   await field.click();
   const fieldBox = await field.boundingBox();
-  const listBox = await page.getByRole("listbox").boundingBox();
-  expect(listBox!.y).toBeGreaterThanOrEqual(fieldBox!.y + fieldBox!.height);
+  // The list slides down 8px while opening (0.1 s), so its final place is what counts
+  const list = page.getByRole("listbox");
+  await expect
+    .poll(async () => (await list.boundingBox())?.y)
+    .toBeGreaterThanOrEqual(fieldBox!.y + fieldBox!.height);
   await page.keyboard.press("Escape");
 });
 
@@ -232,6 +236,8 @@ test("the block shows five people and opens the rest with 'Показать вс
   );
 
   await page.goto("/");
+  // The button reacts only after the page's scripts have loaded
+  await page.waitForLoadState("networkidle");
   const rows = page.getByTestId("reach-out-row");
   await expect(rows).toHaveCount(5);
   const showAll = page.getByRole("button", { name: /^Показать всех \(\d+\)$/ });

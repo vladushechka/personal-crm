@@ -1,10 +1,16 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, isNotNull, max, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, max, sql, type SQL } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { safely } from "@/db/safe-query";
-import { contacts, notes, type Contact, type KeepInTouchFrequency } from "@/db/schema";
+import {
+  contactGroups,
+  contacts,
+  notes,
+  type Contact,
+  type KeepInTouchFrequency,
+} from "@/db/schema";
 
 import type { ContactInput } from "./contact-schema";
 
@@ -38,9 +44,20 @@ function nameMatches(query: string): SQL | undefined {
   );
 }
 
-export async function listContacts(query = ""): Promise<ContactListItem[]> {
+export async function listContacts(query = "", groupId?: number): Promise<ContactListItem[]> {
+  const db = getDb();
+  const inGroup = groupId
+    ? inArray(
+        contacts.id,
+        db
+          .select({ id: contactGroups.contactId })
+          .from(contactGroups)
+          .where(eq(contactGroups.groupId, groupId)),
+      )
+    : undefined;
+
   return safely(
-    getDb()
+    db
       .select({
         id: contacts.id,
         name: contacts.name,
@@ -48,7 +65,7 @@ export async function listContacts(query = ""): Promise<ContactListItem[]> {
         howWeMet: contacts.howWeMet,
       })
       .from(contacts)
-      .where(nameMatches(query))
+      .where(and(nameMatches(query), inGroup))
       .orderBy(asc(contacts.name), asc(contacts.id)),
   );
 }
@@ -100,7 +117,11 @@ export async function addNote(contactId: number, body: string): Promise<void> {
 
 // The date stays the original one, so the note keeps its place in the list.
 // Returns false if the contact has no such note (e.g. it was deleted in another browser)
-export async function updateNote(contactId: number, noteId: number, body: string): Promise<boolean> {
+export async function updateNote(
+  contactId: number,
+  noteId: number,
+  body: string,
+): Promise<boolean> {
   const [row] = await safely(
     getDb()
       .update(notes)
@@ -112,7 +133,9 @@ export async function updateNote(contactId: number, noteId: number, body: string
 }
 
 export async function deleteNote(contactId: number, noteId: number): Promise<void> {
-  await getDb().delete(notes).where(and(eq(notes.id, noteId), eq(notes.contactId, contactId)));
+  await getDb()
+    .delete(notes)
+    .where(and(eq(notes.id, noteId), eq(notes.contactId, contactId)));
 }
 
 // A new frequency restarts the countdown for a contact without notes; null clears both.

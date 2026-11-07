@@ -1,18 +1,27 @@
-// When saving fails, the error must not carry what was being saved: server logs keep it.
-// The dev server passes the error's text on to the browser, so the test reads it there
+// When saving fails, the error must not carry what was being saved: the server log keeps it.
+// The app server's output goes to a file during the tests (playwright.config.ts)
+
+import { readFileSync } from "node:fs";
 
 import { expect, test } from "@playwright/test";
 import { sql } from "drizzle-orm";
 
+import { E2E_SERVER_LOG } from "./constants";
 import { withTestDb } from "./test-db";
 
-test("a failed save shows an error, and the error doesn't contain the note", async ({ page }) => {
-  const note = `Секретная заметка ${Date.now().toString(36)}`;
+function serverLog() {
+  return readFileSync(E2E_SERVER_LOG, "utf8");
+}
+
+test("a failed save shows an error, and neither the log nor the browser gets the note", async ({
+  page,
+}) => {
+  // Latin letters too, so the check doesn't depend on how the log writes Cyrillic
+  const marker = `secret-${Date.now().toString(36)}`;
+  const note = `Секретная заметка ${marker}`;
   const constraint = "e2e_forbidden_note";
   await withTestDb((db) =>
-    db.execute(
-      sql.raw(`alter table notes add constraint ${constraint} check (body <> '${note}')`),
-    ),
+    db.execute(sql.raw(`alter table notes add constraint ${constraint} check (body <> '${note}')`)),
   );
 
   try {
@@ -32,10 +41,11 @@ test("a failed save shows an error, and the error doesn't contain the note", asy
     await page.getByRole("button", { name: "Сохранить заметку" }).click();
     await expect(page.getByText("Что-то пошло не так")).toBeVisible();
 
-    const errorText = browserMessages.join("\n");
-    // 23514 is the Postgres code of a failed check: the error did reach the browser
-    expect(errorText).toContain("23514");
-    expect(errorText).not.toContain(note);
+    // 23514 is the Postgres code of a failed check: the error did reach the log
+    await expect.poll(serverLog).toContain("23514");
+    expect(serverLog()).not.toContain(marker);
+    expect(serverLog()).not.toContain(note);
+    expect(browserMessages.join("\n")).not.toContain(marker);
   } finally {
     await withTestDb((db) =>
       db.execute(sql.raw(`alter table notes drop constraint ${constraint}`)),

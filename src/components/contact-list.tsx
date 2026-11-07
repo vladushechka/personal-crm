@@ -3,10 +3,12 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { ContactListItem } from "@/lib/contacts";
 
-type LetterGroup = { letter: string; contacts: ContactListItem[] };
+export type ContactRowData = ContactListItem & { groupNames: string[] };
+
+type LetterGroup = { letter: string; contacts: ContactRowData[] };
 
 // Contacts arrive sorted by name; split them into sections by first letter
-function groupByFirstLetter(contacts: ContactListItem[]): LetterGroup[] {
+function groupByFirstLetter(contacts: ContactRowData[]): LetterGroup[] {
   const groups: LetterGroup[] = [];
   for (const contact of contacts) {
     const letter = contact.name.charAt(0).toUpperCase() || "#";
@@ -28,7 +30,7 @@ export function ContactList({
   contacts,
   highlightId,
 }: {
-  contacts: ContactListItem[];
+  contacts: ContactRowData[];
   highlightId?: number;
 }) {
   return (
@@ -54,13 +56,7 @@ export function ContactList({
   );
 }
 
-function ContactRow({
-  contact,
-  highlighted,
-}: {
-  contact: ContactListItem;
-  highlighted: boolean;
-}) {
+function ContactRow({ contact, highlighted }: { contact: ContactRowData; highlighted: boolean }) {
   const details = [contact.about, contact.howWeMet].filter(Boolean).join(" · ");
 
   return (
@@ -81,6 +77,19 @@ function ContactRow({
           )}
         </span>
         {details && <span className="truncate text-sm text-muted-foreground">{details}</span>}
+        {contact.groupNames.length > 0 && (
+          <span className="mt-1 flex flex-wrap gap-1.5">
+            {contact.groupNames.map((name) => (
+              <span
+                key={name}
+                data-testid="contact-group"
+                className="rounded-sm bg-accent-soft px-1.5 py-0.5 text-xs text-foreground"
+              >
+                {name}
+              </span>
+            ))}
+          </span>
+        )}
       </Link>
     </li>
   );

@@ -7,15 +7,22 @@ type QueryFailure = {
   cause?: Record<string, unknown>;
 };
 
-function describeFailure(error: unknown) {
-  const failure = (error ?? {}) as QueryFailure & Record<string, unknown>;
-  const source = failure.cause ?? failure;
-  const details = safeFields
-    .filter((field) => typeof source[field] === "string")
-    .map((field) => `${field}=${source[field]}`);
-  // The query text has $1, $2 in place of values
-  const query = typeof failure.query === "string" ? `\nquery: ${failure.query}` : "";
-  return `Database query failed: ${details.join(" ")}${query}`;
+// Keeps the database's error code, so a caller can tell a conflict from a failure
+class SafeQueryError extends Error {
+  code?: string;
+
+  constructor(error: unknown) {
+    const failure = (error ?? {}) as QueryFailure & Record<string, unknown>;
+    const source = failure.cause ?? failure;
+    const details = safeFields
+      .filter((field) => typeof source[field] === "string")
+      .map((field) => `${field}=${source[field]}`);
+    // The query text has $1, $2 in place of values
+    const query = typeof failure.query === "string" ? `\nquery: ${failure.query}` : "";
+
+    super(`Database query failed: ${details.join(" ")}${query}`);
+    this.code = typeof source.code === "string" ? source.code : undefined;
+  }
 }
 
 // Drizzle puts a failed query's values into its error, and server logs print that: names, phones,
@@ -27,6 +34,6 @@ export async function safely<T>(query: PromiseLike<T>): Promise<T> {
     return await query;
   } catch (error) {
     // No "cause": logs would print the original error with its values too
-    throw new Error(describeFailure(error));
+    throw new SafeQueryError(error);
   }
 }

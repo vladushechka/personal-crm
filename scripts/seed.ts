@@ -7,7 +7,7 @@ import { createDb } from "../src/db/client";
 import { getDatabaseConfig, loadEnvFile } from "../src/db/config";
 import { contacts } from "../src/db/schema";
 
-import { assignFakeFrequencies, insertFakeContacts } from "./seed-db";
+import { assignFakeFrequencies, assignFakeGroups, insertFakeContacts } from "./seed-db";
 
 const DEFAULT_COUNT = 1000;
 
@@ -29,9 +29,11 @@ async function main() {
 
     const result = await insertFakeContacts(db, requested);
     const withFrequency = await assignFakeFrequencies(db);
+    const inGroups = await assignFakeGroups(db);
     console.log(
       `Added ${result.contactCount} contacts and ${result.noteCount} notes, ` +
-        `${withFrequency} contacts got a "how often to talk".`,
+        `${withFrequency} contacts got a "how often to talk", ` +
+        `${inGroups.contactCount} are in ${inGroups.groupCount} groups.`,
     );
   } finally {
     await client.end();
