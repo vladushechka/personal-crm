@@ -112,8 +112,11 @@ test("on a phone the list of frequencies opens under the field", async ({ page }
   await field.scrollIntoViewIfNeeded();
   await field.click();
   const fieldBox = await field.boundingBox();
-  const listBox = await page.getByRole("listbox").boundingBox();
-  expect(listBox!.y).toBeGreaterThanOrEqual(fieldBox!.y + fieldBox!.height);
+  // The list slides down 8px while opening (0.1 s), so its final place is what counts
+  const list = page.getByRole("listbox");
+  await expect
+    .poll(async () => (await list.boundingBox())?.y)
+    .toBeGreaterThanOrEqual(fieldBox!.y + fieldBox!.height);
   await page.keyboard.press("Escape");
 });
 
