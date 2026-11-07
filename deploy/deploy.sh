@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Deploys one app image on the server: migrations, then the new app, then a smoke check of /health.
+# Deploys one app image on the server: a database backup, migrations, then the new app, then a
+# smoke check of /health.
 # Run by CI after every push to main. A manual rollback is the same command with the previous image:
 #   bash /opt/crm/prod/deploy.sh "$(cat /opt/crm/prod/previous-image)"
 # There is no automatic rollback: on any failure the script stops and exits non-zero.
@@ -20,6 +21,10 @@ docker pull "$image"
 
 echo "==> Starting the database"
 compose up -d --wait db
+
+# Before migrations change anything; named after the version running now (backup.sh)
+echo "==> Backing up the database"
+bash ./backup.sh before-deploy
 
 echo "==> Applying migrations"
 if ! compose run --rm migrate; then

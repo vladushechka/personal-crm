@@ -70,10 +70,11 @@ jobs:
             StrictHostKeyChecking yes
           EOF
 
+      # The whole folder, so a new script gets there by itself
       - name: Copy deploy scripts to the server
-        run: scp deploy/docker-compose.yml deploy/deploy.sh server:/opt/crm/prod/
+        run: scp deploy/* server:/opt/crm/prod/
 
-      - name: Deploy (migrations, new version, smoke /health)
+      - name: Deploy (backup, migrations, new version, smoke /health)
         env:
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
