@@ -8,7 +8,7 @@ import { createDb } from "../src/db/client";
 import { getDatabaseConfig, loadEnvFile } from "../src/db/config";
 import { groups } from "../src/db/schema";
 
-import { assignFakeGroups } from "./seed-db";
+import { assignFakeGroups, ownerFromSettings } from "./seed-db";
 
 async function main() {
   loadEnvFile();
@@ -21,7 +21,7 @@ async function main() {
       return;
     }
 
-    const result = await assignFakeGroups(db);
+    const result = await assignFakeGroups(db, await ownerFromSettings(db));
     console.log(
       `Created ${result.groupCount} groups, ${result.contactCount} contacts are in them.`,
     );

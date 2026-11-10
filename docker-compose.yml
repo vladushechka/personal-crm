@@ -1,4 +1,4 @@
-# Local PostgreSQL for development. Values come from .env (see .env.example).
+# Local PostgreSQL and the Mailpit mailbox for development. Values come from .env (see .env.example).
 services:
   db:
     image: postgres:18
@@ -18,6 +18,15 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  # Catches every email the app sends locally: nothing leaves this computer.
+  # Inbox in the browser: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.33.1
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
 
 volumes:
   pgdata:

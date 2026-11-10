@@ -35,10 +35,11 @@ services:
       retries: 10
     logging: *logging
 
-  # One-off container from the app image: applies migrations and exits
+  # One-off container from the app image: applies migrations and exits.
+  # OWNER_EMAIL from .env names the owner of the data that existed before sign-in
   migrate:
     <<: *app
-    command: ["node_modules/.bin/drizzle-kit", "migrate"]
+    command: ["node_modules/.bin/tsx", "scripts/migrate.ts"]
     restart: "no"
     profiles: ["tools"]
 

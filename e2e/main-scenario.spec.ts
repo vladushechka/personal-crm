@@ -2,7 +2,7 @@
 
 import { chromium, expect, test } from "@playwright/test";
 
-import { E2E_CONTACT_COUNT } from "./constants";
+import { E2E_CONTACT_COUNT, E2E_STORAGE_STATE } from "./constants";
 
 test("opening the app shows the list of all contacts", async ({ page }) => {
   await page.goto("/");
@@ -58,7 +58,8 @@ test("add a contact, find it by name, add a note; another browser sees the same 
   // A different browser (Microsoft Edge) at the same address sees the same data
   const otherBrowser = await chromium.launch({ channel: "msedge" });
   try {
-    const otherPage = await otherBrowser.newPage();
+    // The same person, signed in there too
+    const otherPage = await otherBrowser.newPage({ storageState: E2E_STORAGE_STATE });
     await otherPage.goto(cardUrl);
     await expect(otherPage.getByRole("heading", { level: 1, name })).toBeVisible();
     await expect(otherPage.getByTestId("note").filter({ hasText: note })).toBeVisible();

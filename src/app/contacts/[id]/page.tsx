@@ -33,6 +33,7 @@ import { parseContactId } from "@/lib/contact-schema";
 import { getContactWithNotes } from "@/lib/contacts";
 import { formatDateTime, pluralize } from "@/lib/format";
 import { listContactGroupIds, listGroups } from "@/lib/groups";
+import { requireUserId } from "@/lib/session";
 
 export default function ContactPage({ params, searchParams }: PageProps<"/contacts/[id]">) {
   return (
@@ -49,10 +50,11 @@ async function ContactDetails({ params, searchParams }: PageProps<"/contacts/[id
   const contactId = parseContactId((await params).id);
   if (!contactId) notFound();
 
+  const ownerId = await requireUserId();
   const [contact, groups, groupIds] = await Promise.all([
-    getContactWithNotes(contactId),
-    listGroups(),
-    listContactGroupIds(contactId),
+    getContactWithNotes(ownerId, contactId),
+    listGroups(ownerId),
+    listContactGroupIds(ownerId, contactId),
   ]);
   if (!contact) notFound();
 

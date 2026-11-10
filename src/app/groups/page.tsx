@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { connection } from "next/server";
 import { Suspense } from "react";
 import { TagsIcon } from "lucide-react";
 
@@ -16,6 +15,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { pluralize } from "@/lib/format";
 import { listGroups } from "@/lib/groups";
+import { requireUserId } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Группы · Personal CRM" };
 
@@ -32,9 +32,7 @@ export default function GroupsPage() {
 }
 
 async function Groups() {
-  // Read on every request: the build has no database
-  await connection();
-  const groups = await listGroups();
+  const groups = await listGroups(await requireUserId());
 
   if (groups.length === 0) return <NoGroups />;
 

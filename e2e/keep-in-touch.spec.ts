@@ -7,7 +7,7 @@ import { eq, sql } from "drizzle-orm";
 import { contacts, notes } from "../src/db/schema";
 import { formatDate } from "../src/lib/format";
 
-import { withTestDb } from "./test-db";
+import { e2eOwnerId, withTestDb } from "./test-db";
 
 function uniqueName(prefix: string) {
   return `${prefix} ${Date.now().toString(36)}`;
@@ -249,9 +249,11 @@ test("the block shows the five most overdue and opens the rest in the same order
   // each next one by a day more
   const prefix = uniqueName("Много просроченных");
   const names = Array.from({ length: 6 }, (_, index) => `${prefix} ${index + 1}`);
+  const ownerId = await e2eOwnerId();
   await withTestDb((db) =>
     db.insert(contacts).values(
       names.map((name, index) => ({
+        ownerId,
         name,
         keepInTouchFrequency: "week" as const,
         keepInTouchSince: sql`now() - ${`${3650 + index} days`}::interval`,
