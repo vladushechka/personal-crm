@@ -10,6 +10,10 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
+import { users } from "./auth-schema";
+
+export * from "./auth-schema";
+
 // How often the user wants to talk to a contact
 export const keepInTouchFrequencies = ["week", "month", "quarter", "year"] as const;
 export type KeepInTouchFrequency = (typeof keepInTouchFrequencies)[number];
@@ -19,6 +23,10 @@ export const contacts = pgTable(
   "contacts",
   {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    // Whose contact this is: every query filters by it. Notes belong to the contact's owner
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     // Who this person is, e.g. "former colleague, designer"
     about: text("about"),
@@ -31,7 +39,7 @@ export const contacts = pgTable(
     keepInTouchSince: timestamp("keep_in_touch_since", { withTimezone: true }),
   },
   (table) => [
-    index("contacts_name_idx").on(table.name),
+    index("contacts_owner_id_name_idx").on(table.ownerId, table.name),
     check(
       "contacts_keep_in_touch_frequency_check",
       sql`${table.keepInTouchFrequency} in ('week', 'month', 'quarter', 'year')`,
@@ -54,15 +62,21 @@ export const notes = pgTable(
 );
 
 // A circle of people the user names themselves, e.g. "Семья" or "Теннис".
-// "Семья" and "семья" are one group: the database refuses a second one
+// "Семья" and "семья" of one user are one group: the database refuses a second one.
+// Another user may have their own "Семья"
 export const groups = pgTable(
   "groups",
   {
     id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [uniqueIndex("groups_lower_name_idx").on(sql`lower(${table.name})`)],
+  (table) => [
+    uniqueIndex("groups_owner_id_lower_name_idx").on(table.ownerId, sql`lower(${table.name})`),
+  ],
 );
 
 // Who is in which group. Deleting a contact or a group removes its rows here
@@ -80,6 +94,17 @@ export const contactGroups = pgTable(
     primaryKey({ columns: [table.contactId, table.groupId] }),
     index("contact_groups_group_id_idx").on(table.groupId),
   ],
+);
+
+// Every sign-in email sent, for the limit of 3 emails per address in 10 minutes
+export const magicLinkSends = pgTable(
+  "magic_link_sends",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    email: text("email").notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("magic_link_sends_email_sent_at_idx").on(table.email, table.sentAt)],
 );
 
 export type Contact = typeof contacts.$inferSelect;

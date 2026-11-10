@@ -6,7 +6,7 @@ import { count, eq, sql } from "drizzle-orm";
 
 import { contactGroups, contacts, groups } from "../src/db/schema";
 
-import { withTestDb } from "./test-db";
+import { e2eOwnerId, withTestDb } from "./test-db";
 
 function unique(prefix: string) {
   return `${prefix} ${Date.now().toString(36)}`;
@@ -54,12 +54,13 @@ async function pressGroup(page: Page, name: string) {
 
 // A group with these people, created straight in the test database: faster than through the card
 async function seedGroup(groupName: string, contactNames: string[]) {
+  const ownerId = await e2eOwnerId();
   return withTestDb(async (db) => {
-    const [group] = await db.insert(groups).values({ name: groupName }).returning();
+    const [group] = await db.insert(groups).values({ ownerId, name: groupName }).returning();
     if (contactNames.length > 0) {
       const added = await db
         .insert(contacts)
-        .values(contactNames.map((name) => ({ name })))
+        .values(contactNames.map((name) => ({ ownerId, name })))
         .returning({ id: contacts.id });
       await db
         .insert(contactGroups)
@@ -273,10 +274,12 @@ test("a name from outside the chosen group isn't found", async ({ page }) => {
 test("the 'Пора связаться' block is hidden while a group is chosen", async ({ page }) => {
   const group = unique("Без блока");
   await seedGroup(group, [unique("В группе без блока")]);
+  const ownerId = await e2eOwnerId();
   const [due] = await withTestDb((db) =>
     db
       .insert(contacts)
       .values({
+        ownerId,
         name: unique("Пора написать"),
         keepInTouchFrequency: "week",
         keepInTouchSince: sql`now() - interval '30 days'`,

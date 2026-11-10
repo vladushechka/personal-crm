@@ -1,6 +1,6 @@
 import { defineConfig } from "@playwright/test";
 
-import { E2E_DATABASE, E2E_PORT, E2E_SERVER_LOG } from "./e2e/constants";
+import { E2E_DATABASE, E2E_PORT, E2E_SERVER_LOG, E2E_STORAGE_STATE } from "./e2e/constants";
 
 // "localhost", not "127.0.0.1": the Next.js dev server blocks its scripts for other origins
 const baseURL = `http://localhost:${E2E_PORT}`;
@@ -17,6 +17,8 @@ export default defineConfig({
     // Use the installed Google Chrome instead of downloading a browser
     channel: "chrome",
     trace: "retain-on-failure",
+    // Signed in as the owner of the test contacts (global-setup.ts); sign-in tests start without
+    storageState: E2E_STORAGE_STATE,
   },
   webServer: {
     // CI runs a production build made before the tests (pnpm build): the same code as on the
@@ -30,7 +32,14 @@ export default defineConfig({
     url: baseURL,
     reuseExistingServer: false,
     timeout: 180_000,
-    // Point the app at the test database; Next.js does not override variables already set
-    env: { POSTGRES_DB: E2E_DATABASE },
+    // The test database, the test address and the Mailpit mailbox, whatever .env says:
+    // Next.js does not override variables already set. The secret is for tests only
+    env: {
+      POSTGRES_DB: E2E_DATABASE,
+      BETTER_AUTH_URL: baseURL,
+      BETTER_AUTH_SECRET: "e2e-only-secret-used-nowhere-else-0123456789",
+      SMTP_URL: "smtp://127.0.0.1:1025",
+      MAIL_FROM: "Personal CRM <noreply@mail.app.vladmath.com>",
+    },
   },
 });

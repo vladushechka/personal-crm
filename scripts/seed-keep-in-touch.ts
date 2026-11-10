@@ -8,7 +8,7 @@ import { createDb } from "../src/db/client";
 import { getDatabaseConfig, loadEnvFile } from "../src/db/config";
 import { contacts } from "../src/db/schema";
 
-import { assignFakeFrequencies } from "./seed-db";
+import { assignFakeFrequencies, ownerFromSettings } from "./seed-db";
 
 async function main() {
   loadEnvFile();
@@ -24,7 +24,7 @@ async function main() {
       return;
     }
 
-    const withFrequency = await assignFakeFrequencies(db);
+    const withFrequency = await assignFakeFrequencies(db, await ownerFromSettings(db));
     console.log(`${withFrequency} contacts got a "how often to talk".`);
   } finally {
     await client.end();

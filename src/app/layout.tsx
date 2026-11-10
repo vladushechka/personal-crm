@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Golos_Text, Playfair_Display } from "next/font/google";
 import Link from "next/link";
+import { Suspense } from "react";
+
+import { UserMenu } from "@/components/user-menu";
 
 import "./globals.css";
 
@@ -26,27 +29,34 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="ru" className={`${golos.variable} ${playfair.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <header className="mx-auto w-full max-w-3xl px-6 pt-5">
-          <div className="flex items-center justify-between border-b pb-5">
+          <div className="flex items-center justify-between gap-3 border-b pb-5">
             <Link
               href="/"
-              className="rounded-sm font-heading text-xl font-bold outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:text-2xl"
+              className="shrink-0 whitespace-nowrap rounded-sm font-heading text-xl font-bold outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:text-2xl"
             >
               Personal CRM
             </Link>
-            {/* Notepad icon from the landing header */}
-            <svg
-              className="size-5.5 sm:size-6"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <path d="M5 4h11l3 3v13H5z" />
-              <path d="M9 10h6M9 14h6" />
-            </svg>
+            <div className="flex min-w-0 items-center gap-3">
+              {/* The signed-in user: read on every request */}
+              <Suspense>
+                <UserMenu />
+              </Suspense>
+              {/* Notepad icon from the landing header; on narrow screens the email and «Выйти»
+                  need its room */}
+              <svg
+                className="hidden size-6 shrink-0 sm:block"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M5 4h11l3 3v13H5z" />
+                <path d="M9 10h6M9 14h6" />
+              </svg>
+            </div>
           </div>
         </header>
         {children}

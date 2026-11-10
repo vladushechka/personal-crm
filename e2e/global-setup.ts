@@ -1,22 +1,25 @@
-import { migrate } from "drizzle-orm/postgres-js/migrator";
+import { chromium, type FullConfig } from "@playwright/test";
 import postgres from "postgres";
 
-import { insertFakeContacts } from "../scripts/seed-db";
+import { applyMigrations } from "../scripts/migrate-db";
+import { findOrCreateUser, insertFakeContacts } from "../scripts/seed-db";
 import { createDb } from "../src/db/client";
 import { getDatabaseConfig, loadEnvFile } from "../src/db/config";
 
-import { E2E_CONTACT_COUNT, E2E_DATABASE } from "./constants";
+import { signIn } from "./auth";
+import { E2E_CONTACT_COUNT, E2E_DATABASE, E2E_OWNER_EMAIL, E2E_STORAGE_STATE } from "./constants";
 
-// Recreates the test database from scratch: migrations + fake contacts
-export default async function globalSetup() {
+// Recreates the test database from scratch: migrations + the owner with fake contacts.
+// Then signs the owner in through the real form and the email, for the tests to start signed in
+export default async function globalSetup(config: FullConfig) {
   loadEnvFile();
-  const config = getDatabaseConfig();
+  const database = getDatabaseConfig();
 
-  if (config.database === E2E_DATABASE) {
+  if (database.database === E2E_DATABASE) {
     throw new Error(`POSTGRES_DB must not be "${E2E_DATABASE}": that name is reserved for tests`);
   }
 
-  const admin = postgres({ ...config, database: "postgres", max: 1, onnotice: () => {} });
+  const admin = postgres({ ...database, database: "postgres", max: 1, onnotice: () => {} });
   try {
     await admin.unsafe(`DROP DATABASE IF EXISTS "${E2E_DATABASE}" WITH (FORCE)`);
     await admin.unsafe(`CREATE DATABASE "${E2E_DATABASE}"`);
@@ -24,11 +27,21 @@ export default async function globalSetup() {
     await admin.end();
   }
 
-  const { db, client } = createDb({ ...config, database: E2E_DATABASE }, { max: 1 });
+  const { db, client } = createDb({ ...database, database: E2E_DATABASE }, { max: 1 });
   try {
-    await migrate(db, { migrationsFolder: "drizzle" });
-    await insertFakeContacts(db, E2E_CONTACT_COUNT);
+    await applyMigrations(client);
+    await insertFakeContacts(db, await findOrCreateUser(db, E2E_OWNER_EMAIL), E2E_CONTACT_COUNT);
   } finally {
     await client.end();
+  }
+
+  const { baseURL, channel } = config.projects[0].use;
+  const browser = await chromium.launch({ channel });
+  try {
+    const page = await browser.newPage({ baseURL });
+    await signIn(page, E2E_OWNER_EMAIL);
+    await page.context().storageState({ path: E2E_STORAGE_STATE });
+  } finally {
+    await browser.close();
   }
 }

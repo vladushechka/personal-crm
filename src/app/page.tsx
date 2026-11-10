@@ -21,6 +21,7 @@ import { countContacts, listContacts, listContactsToReachOut } from "@/lib/conta
 import { pluralize } from "@/lib/format";
 import { listGroupNamesByContact, listGroups } from "@/lib/groups";
 import { describeReachOut, type ContactToReachOut } from "@/lib/keep-in-touch";
+import { requireUserId } from "@/lib/session";
 
 const CONTACT_WORDS: [string, string, string] = ["контакт", "контакта", "контактов"];
 
@@ -52,16 +53,17 @@ async function Contacts({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
   const addedId = Number.parseInt(firstValue(params.added), 10) || undefined;
   const deletedName = firstValue(params.deleted);
 
-  const groups = await listGroups();
+  const ownerId = await requireUserId();
+  const groups = await listGroups(ownerId);
   // The address of a group deleted meanwhile just shows all contacts
   const group = groups.find(({ id }) => String(id) === firstValue(params.group));
 
   // The "Пора связаться" block covers the whole list, so it is hidden while narrowing it down
   const [contacts, allContactsCount, groupNames, toReachOut] = await Promise.all([
-    listContacts(query, group?.id),
-    countContacts(),
-    listGroupNamesByContact(),
-    query || group ? [] : listContactsToReachOut(),
+    listContacts(ownerId, query, group?.id),
+    countContacts(ownerId),
+    listGroupNamesByContact(ownerId),
+    query || group ? [] : listContactsToReachOut(ownerId),
   ]);
   const total = group ? group.contactCount : allContactsCount;
   const rows = contacts.map((contact) => ({
@@ -134,7 +136,7 @@ function NoContacts() {
           <UsersIcon />
         </EmptyMedia>
         <EmptyTitle>Пока нет ни одного контакта</EmptyTitle>
-        <EmptyDescription>Добавьте первого человека — он появится в этом списке.</EmptyDescription>
+        <EmptyDescription>Добавь первый контакт</EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
         <Link href="/contacts/new" className={buttonVariants()}>

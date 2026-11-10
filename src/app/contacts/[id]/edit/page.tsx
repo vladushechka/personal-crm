@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { contactFields, parseContactId } from "@/lib/contact-schema";
 import { getContact } from "@/lib/contacts";
+import { requireUserId } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: "Изменить контакт · Personal CRM",
@@ -30,7 +31,7 @@ async function EditContact({ params }: Pick<PageProps<"/contacts/[id]/edit">, "p
   const contactId = parseContactId((await params).id);
   if (!contactId) notFound();
 
-  const contact = await getContact(contactId);
+  const contact = await getContact(await requireUserId(), contactId);
   if (!contact) notFound();
 
   const defaultValues = Object.fromEntries(

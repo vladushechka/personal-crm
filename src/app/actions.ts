@@ -31,6 +31,10 @@ import {
   renameGroup,
 } from "@/lib/groups";
 import { frequencies } from "@/lib/keep-in-touch";
+import { requireUserId } from "@/lib/session";
+
+// Every action works only with the data of the signed-in user: who it is comes from the session,
+// never from the arguments, which the browser can change
 
 const contactIdSchema = z.number().int().positive();
 const noteIdSchema = z.number().int().positive();
@@ -74,10 +78,11 @@ export async function createContactAction(
   _prevState: ContactFormState,
   formData: FormData,
 ): Promise<ContactFormState> {
+  const ownerId = await requireUserId();
   const { data, invalid } = parseContactForm(formData);
   if (invalid) return invalid;
 
-  const id = await createContact(data);
+  const id = await createContact(ownerId, data);
 
   revalidatePath("/");
   redirect(`/?added=${id}`);
@@ -88,11 +93,12 @@ export async function updateContactAction(
   _prevState: ContactFormState,
   formData: FormData,
 ): Promise<ContactFormState> {
+  const ownerId = await requireUserId();
   const { data, invalid } = parseContactForm(formData);
   if (invalid) return invalid;
 
   const updated =
-    contactIdSchema.safeParse(contactId).success && (await updateContact(contactId, data));
+    contactIdSchema.safeParse(contactId).success && (await updateContact(ownerId, contactId, data));
 
   revalidatePath("/");
   // Replace the form in the browser history, so "Back" from the card doesn't reopen it.
@@ -114,9 +120,10 @@ export async function addNoteAction(
   _prevState: NoteFormState,
   formData: FormData,
 ): Promise<NoteFormState> {
+  const ownerId = await requireUserId();
   const body = String(formData.get("body") ?? "");
 
-  if (!contactIdSchema.safeParse(contactId).success || !(await contactExists(contactId))) {
+  if (!contactIdSchema.safeParse(contactId).success || !(await contactExists(ownerId, contactId))) {
     return { error: "Контакт не найден", body };
   }
 
@@ -125,7 +132,10 @@ export async function addNoteAction(
     return { error: parsed.error.issues[0]?.message, body };
   }
 
-  await addNote(contactId, parsed.data.body);
+  // Deleted meanwhile, e.g. in another browser
+  if (!(await addNote(ownerId, contactId, parsed.data.body))) {
+    return { error: "Контакт не найден", body };
+  }
 
   // A note restarts the countdown in the "Пора связаться" block on the list
   revalidatePath("/");
@@ -144,6 +154,7 @@ export async function updateNoteAction(
   _prevState: EditNoteState,
   formData: FormData,
 ): Promise<EditNoteState> {
+  const ownerId = await requireUserId();
   const body = String(formData.get("body") ?? "");
 
   const parsed = noteInputSchema.safeParse({ body });
@@ -154,7 +165,7 @@ export async function updateNoteAction(
   const updated =
     contactIdSchema.safeParse(contactId).success &&
     noteIdSchema.safeParse(noteId).success &&
-    (await updateNote(contactId, noteId, parsed.data.body));
+    (await updateNote(ownerId, contactId, noteId, parsed.data.body));
   if (!updated) {
     return { error: "Заметка не найдена", body };
   }
@@ -164,9 +175,10 @@ export async function updateNoteAction(
 }
 
 export async function deleteNoteAction(contactId: number, noteId: number): Promise<void> {
+  const ownerId = await requireUserId();
   // Already deleted (e.g. in another browser): the refreshed card just doesn't show it
   if (contactIdSchema.safeParse(contactId).success && noteIdSchema.safeParse(noteId).success) {
-    await deleteNote(contactId, noteId);
+    await deleteNote(ownerId, contactId, noteId);
   }
   // Deleting the latest note can bring the contact back to the "Пора связаться" block
   revalidatePath("/");
@@ -182,13 +194,15 @@ export async function setKeepInTouchAction(
   _prevState: KeepInTouchState,
   formData: FormData,
 ): Promise<KeepInTouchState> {
+  const ownerId = await requireUserId();
   const parsed = frequencyInputSchema.safeParse(formData.get("frequency") ?? "");
   if (!parsed.success) {
     return { error: "Неизвестная частота" };
   }
 
   const updated =
-    contactIdSchema.safeParse(contactId).success && (await setKeepInTouch(contactId, parsed.data));
+    contactIdSchema.safeParse(contactId).success &&
+    (await setKeepInTouch(ownerId, contactId, parsed.data));
   if (!updated) {
     return { error: "Контакт не найден" };
   }
@@ -208,17 +222,18 @@ export async function setContactGroupAction(
   groupId: number,
   inGroup: boolean,
 ): Promise<ContactGroupState> {
-  if (!contactIdSchema.safeParse(contactId).success || !(await contactExists(contactId))) {
+  const ownerId = await requireUserId();
+  if (!contactIdSchema.safeParse(contactId).success || !(await contactExists(ownerId, contactId))) {
     return { error: "Контакт не найден" };
   }
-  if (!groupIdSchema.safeParse(groupId).success || !(await groupExists(groupId))) {
+  if (!groupIdSchema.safeParse(groupId).success || !(await groupExists(ownerId, groupId))) {
     return { error: "Группа не найдена" };
   }
 
   if (inGroup) {
-    await addContactToGroup(contactId, groupId);
+    await addContactToGroup(ownerId, contactId, groupId);
   } else {
-    await removeContactFromGroup(contactId, groupId);
+    await removeContactFromGroup(ownerId, contactId, groupId);
   }
 
   // The list shows a contact's groups and how many people each group has
@@ -238,17 +253,18 @@ export async function addContactToNewGroupAction(
   _prevState: NewGroupState,
   formData: FormData,
 ): Promise<NewGroupState> {
+  const ownerId = await requireUserId();
   const name = String(formData.get("name") ?? "");
 
   const parsed = groupNameSchema.safeParse(name);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message, name };
   }
-  if (!contactIdSchema.safeParse(contactId).success || !(await contactExists(contactId))) {
+  if (!contactIdSchema.safeParse(contactId).success || !(await contactExists(ownerId, contactId))) {
     return { error: "Контакт не найден", name };
   }
 
-  await addContactToNamedGroup(contactId, parsed.data);
+  await addContactToNamedGroup(ownerId, contactId, parsed.data);
 
   revalidatePath("/");
   refresh();
@@ -268,6 +284,7 @@ export async function renameGroupAction(
   _prevState: RenameGroupState,
   formData: FormData,
 ): Promise<RenameGroupState> {
+  const ownerId = await requireUserId();
   const name = String(formData.get("name") ?? "");
 
   const parsed = groupNameSchema.safeParse(name);
@@ -276,7 +293,7 @@ export async function renameGroupAction(
   }
 
   const result = groupIdSchema.safeParse(groupId).success
-    ? await renameGroup(groupId, parsed.data)
+    ? await renameGroup(ownerId, groupId, parsed.data)
     : "not-found";
   if (result === "taken") return { error: "Такая группа уже есть", name };
   if (result === "not-found") return { error: "Группа не найдена", name };
@@ -287,17 +304,19 @@ export async function renameGroupAction(
 }
 
 export async function deleteGroupAction(groupId: number): Promise<void> {
+  const ownerId = await requireUserId();
   // Already deleted (e.g. in another browser): the refreshed page just doesn't show it
   if (groupIdSchema.safeParse(groupId).success) {
-    await deleteGroup(groupId);
+    await deleteGroup(ownerId, groupId);
   }
   revalidatePath("/");
   refresh();
 }
 
 export async function deleteContactAction(contactId: number): Promise<void> {
+  const ownerId = await requireUserId();
   const deletedName = contactIdSchema.safeParse(contactId).success
-    ? await deleteContact(contactId)
+    ? await deleteContact(ownerId, contactId)
     : null;
 
   revalidatePath("/");

@@ -4,7 +4,8 @@
 import type { NewContact } from "../src/db/schema";
 
 export type FakeContact = {
-  contact: NewContact;
+  // The owner is set when the contacts are inserted
+  contact: Omit<NewContact, "ownerId">;
   notes: { body: string; createdAt: Date }[];
 };
 

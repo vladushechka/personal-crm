@@ -59,6 +59,12 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      # Mailbox for the sign-in emails: the tests take the link from it
+      mailpit:
+        image: axllent/mailpit:v1.33.1
+        ports:
+          - 1025:1025
+          - 8025:8025
     env:
       POSTGRES_HOST: 127.0.0.1
       POSTGRES_PORT: 5432
