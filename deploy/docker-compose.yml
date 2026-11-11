@@ -1,7 +1,10 @@
-# Production stack on the server, docker compose project "prod".
-# CI copies the whole deploy/ folder to /opt/crm/prod; deploy.sh runs it.
-# Secrets come from /opt/crm/prod/.env (chmod 600, written by hand on the server).
-# APP_IMAGE is set by deploy.sh; the running one is recorded in /opt/crm/prod/current-image.
+# App stack on the server, one file for both environments: compose project "prod" in /opt/crm/prod
+# and "staging" in /opt/crm/staging (see env.sh). CI copies the whole deploy/ folder to the
+# environment's folder; deploy.sh runs it.
+# Secrets come from .env in that folder (chmod 600, written by hand on the server).
+# APP_IMAGE and APP_PORT are set by the scripts; the running image is recorded in current-image.
+# Both environments share one server: every container has a memory ceiling, so one of them
+# can't starve the other or the landing.
 
 x-logging: &logging
   driver: json-file
@@ -9,12 +12,17 @@ x-logging: &logging
     max-size: "10m"
     max-file: "3"
 
+# The server has 1.8 GB; on 2026-11-11 the prod app used ~230 MB and its database ~55 MB
 x-app: &app
   image: ${APP_IMAGE:?APP_IMAGE is not set, run deploy.sh}
   env_file: .env
   environment:
     POSTGRES_HOST: db
   logging: *logging
+  deploy:
+    resources:
+      limits:
+        memory: 512M
   depends_on:
     db:
       condition: service_healthy
@@ -34,6 +42,10 @@ services:
       timeout: 5s
       retries: 10
     logging: *logging
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   # One-off container from the app image: applies migrations and exits.
   # OWNER_EMAIL from .env names the owner of the data that existed before sign-in
@@ -47,8 +59,9 @@ services:
     <<: *app
     restart: unless-stopped
     ports:
-      # Only nginx on this server reaches the app; Docker would bypass the firewall otherwise
-      - "127.0.0.1:3000:3000"
+      # Only nginx on this server reaches the app; Docker would bypass the firewall otherwise.
+      # prod 3000, staging 3001 (env.sh)
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
     healthcheck:
       test:
         [

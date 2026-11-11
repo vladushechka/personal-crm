@@ -6,6 +6,8 @@
 # The app version stays the same; for a full rollback see README, "Бэкапы и восстановление".
 set -euo pipefail
 cd "$(dirname "$0")"
+# Prod only; refuses to run from the staging folder
+source ./env.sh prod
 
 file="${1:?Usage: bash restore.sh backups/<file>.dump}"
 if [ ! -f "$file" ]; then
@@ -62,18 +64,7 @@ echo "==> Starting the app"
 compose up -d --wait --wait-timeout 120 app
 
 echo "==> Smoke check /health"
-for attempt in $(seq 1 10); do
-  if curl -fsS http://127.0.0.1:3000/health; then
-    echo
-    healthy=1
-    break
-  fi
-  sleep 3
-done
-if [ "${healthy:-}" != 1 ]; then
-  echo "Smoke check failed: /health does not answer 200" >&2
-  exit 1
-fi
+smoke
 
 echo "==> Restored $file"
 echo "The database as it was before the restore: $snapshot"
