@@ -7,6 +7,8 @@
 # Prints the path of the new backup as the last line.
 set -euo pipefail
 cd "$(dirname "$0")"
+# Backups are for prod only; refuses to run from the staging folder
+source ./env.sh prod
 
 label="${1:-manual}"
 
@@ -20,10 +22,6 @@ if [ -z "${APP_IMAGE:-}" ]; then
   APP_IMAGE="$(cat current-image 2>/dev/null || echo none)"
   export APP_IMAGE
 fi
-
-compose() {
-  docker compose -p prod -f docker-compose.yml "$@"
-}
 
 version="$(cat current-image 2>/dev/null || true)"
 version="${version##*:}"

@@ -105,30 +105,33 @@ pnpm start
 
 ## Выкатка
 
-Адрес: https://app.vladmath.com
+Два окружения на одном сервере, у каждого своя база, свой `.env` и свой вход:
 
-Изменения попадают в `main` только через PR, и каждое вливание в `main` - это выкатка. Сама она идёт так (вкладка Actions на GitHub):
+- прод: https://app.vladmath.com, папка `/opt/crm/prod`
+- тест-стенд: https://test-app.vladmath.com, папка `/opt/crm/staging`. Закрыт паролем, база - копия прода
+
+Изменения попадают в `main` только через PR, и каждое вливание в `main` выкатывается на оба окружения. Сама выкатка идёт так (вкладка Actions на GitHub, workflow Deploy):
 
 1. GitHub собирает образ приложения (`Dockerfile`) и кладёт его в GHCR с меткой - хешем коммита
-2. Копирует всю папку `deploy/` на сервер в `/opt/crm/prod` и запускает `deploy.sh`
-3. На сервере: копия базы → миграции базы → новая версия приложения → проверка `/health`
+2. Для стенда и прода отдельно, один и тот же образ: копирует всю папку `deploy/` на сервер в папку окружения и запускает `deploy.sh` с именем окружения
+3. На сервере: копия базы (только на проде) → миграции базы → новая версия приложения → проверка `/health`
 
-Если копия базы не снялась или миграции упали - новая версия не запускается, работает старая. Если `/health` не отвечает 200 - выкатка красная, ничего само не откатывается.
+Если копия базы не снялась или миграции упали - новая версия не запускается, работает старая. Если `/health` не отвечает 200 - выкатка красная, ничего само не откатывается. Упала выкатка на стенд - прод всё равно выкатывается, и наоборот. Две выкатки на одно окружение одновременно не идут: вторая ждёт первую.
 
 ### Как проверить
 
-- Откройте https://app.vladmath.com
+- Откройте https://app.vladmath.com и https://test-app.vladmath.com
 - https://app.vladmath.com/health - должно быть `{"status":"ok"}`
 
 ### На сервере
 
-Зайти: `ssh crm`. Всё приложение - в `/opt/crm/prod`:
+Зайти: `ssh crm`. Прод - в `/opt/crm/prod`, стенд - в `/opt/crm/staging`, внутри одинаково:
 
-- `.env` - пароль базы, права 600. Пишется руками, в git не попадает
+- `.env` - пароли и ключи окружения, права 600. Пишется руками, в git не попадает
 - `current-image`, `previous-image` - текущая и предыдущая версии
-- `backups/` - копии базы, читает только владелец папки: внутри личные данные
+- `backups/` (только у прода) - копии базы, читает только владелец папки: внутри личные данные
 
-Посмотреть, что запущено, и логи:
+Посмотреть, что запущено, и логи (для стенда - `cd /opt/crm/staging` и `-p staging`):
 
 ```
 cd /opt/crm/prod
@@ -150,10 +153,10 @@ cd /opt/crm/prod
 APP_IMAGE=$(cat current-image) docker compose -p prod run --rm migrate node_modules/.bin/tsx scripts/seed-groups.ts
 ```
 
-Откат на предыдущую версию (вручную):
+Откат прода на предыдущую версию (вручную):
 
 ```
-bash /opt/crm/prod/deploy.sh "$(cat /opt/crm/prod/previous-image)"
+bash /opt/crm/prod/deploy.sh prod "$(cat /opt/crm/prod/previous-image)"
 ```
 
 ### Настройки на сервере
@@ -165,6 +168,26 @@ bash /opt/crm/prod/deploy.sh "$(cat /opt/crm/prod/previous-image)"
 - `SMTP_URL=smtps://resend:КЛЮЧ@smtp.resend.com:465` - ключ Resend только на отправку с домена `mail.app.vladmath.com`
 - `MAIL_FROM="Personal CRM <noreply@mail.app.vladmath.com>"`
 - `OWNER_EMAIL` - почта владельца: ей достаются контакты, которые были до входа, и тестовые данные
+
+В `/opt/crm/staging/.env` - те же строки, но свои значения: свой пароль базы, свой `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL=https://test-app.vladmath.com` и свой ключ Resend `staging` в `SMTP_URL`. Поэтому вход на стенде и на проде не зависит друг от друга, а утечка ключа со стенда не задевает прод. `OWNER_EMAIL` стенду не нужен.
+
+### Тест-стенд
+
+https://test-app.vladmath.com спрашивает логин и пароль - пароль стенда, не путать со входом по ссылке. Дальше вход в приложение по ссылке из письма, как на проде: письмо настоящее, ссылка ведёт на стенд.
+
+Сменить пароль стенда (`vlad` - логин, можно другой):
+
+```
+ssh -t crm 'printf "vlad:%s\n" "$(openssl passwd -apr1)" | sudo tee /etc/nginx/test-app.htpasswd >/dev/null && sudo systemctl reload nginx'
+```
+
+База стенда - копия прода из последнего бэкапа, сессии входа в копию не попадают. Испортилась или нужны свежие данные - пересоздать из самого свежего бэкапа прода (прод не трогает):
+
+```
+ssh crm bash /opt/crm/staging/staging-db.sh
+```
+
+Настройки nginx стенда - `nginx/test-app.vladmath.com.conf`, на сервере `/etc/nginx/sites-available/test-app.vladmath.com`. Сертификат `test-app` от certbot, продлевается сам.
 
 ### Бэкапы и восстановление
 
@@ -194,7 +217,7 @@ bash /opt/crm/prod/backup.sh manual
 
 Полный откат после выкатки, которая поменяла базу (например, вход и пользователи): приложение и база откатываются только вместе.
 
-1. Сначала прошлая версия приложения: `bash /opt/crm/prod/deploy.sh "$(cat /opt/crm/prod/previous-image)"`
+1. Сначала прошлая версия приложения: `bash /opt/crm/prod/deploy.sh prod "$(cat /opt/crm/prod/previous-image)"`
 2. Потом база из копии, снятой перед плохой выкаткой: `bash /opt/crm/prod/restore.sh backups/<дата>_<прошлая версия>_before-deploy.dump`. Прошлая версия - первые 7 символов из `previous-image`
 
 ## Для разработки

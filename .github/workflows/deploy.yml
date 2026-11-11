@@ -1,5 +1,6 @@
-# Every push to main is a release: build the image, push it to GHCR, deploy it to the server.
-# The server side lives in deploy/: CI copies it to /opt/crm/prod and runs deploy.sh.
+# Every push to main: build the image, push it to GHCR, deploy the same image to staging
+# (https://test-app.vladmath.com) and to prod (https://app.vladmath.com), each on its own.
+# The server side lives in deploy/: CI copies it to /opt/crm/<env> and runs deploy.sh <env>.
 # Secrets: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY (private deploy key), DEPLOY_KNOWN_HOSTS.
 name: Deploy
 
@@ -7,11 +8,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-
-# One deploy at a time; a newer push waits instead of cancelling a half-done deploy
-concurrency:
-  group: deploy-prod
-  cancel-in-progress: false
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}:${{ github.sha }}
@@ -43,7 +39,25 @@ jobs:
 
   deploy:
     needs: build
+    strategy:
+      # A failed staging deploy doesn't stop prod, and the other way round
+      fail-fast: false
+      matrix:
+        include:
+          - env: staging
+            url: https://test-app.vladmath.com
+          - env: prod
+            url: https://app.vladmath.com
+    name: deploy (${{ matrix.env }})
     runs-on: ubuntu-latest
+    # The deploy history of each environment is kept by GitHub (Deployments)
+    environment:
+      name: ${{ matrix.env }}
+      url: ${{ matrix.url }}
+    # One deploy per environment at a time; a newer push waits instead of cancelling a half-done one
+    concurrency:
+      group: deploy-${{ matrix.env }}
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: read
@@ -72,16 +86,24 @@ jobs:
 
       # The whole folder, so a new script gets there by itself
       - name: Copy deploy scripts to the server
-        run: scp deploy/* server:/opt/crm/prod/
+        run: scp deploy/* "server:/opt/crm/${{ matrix.env }}/"
 
-      - name: Deploy (backup, migrations, new version, smoke /health)
+      # The job token can pull the image only while this job runs, and the other environment may
+      # pull at the same time: a login of this job only, in its own folder, removed after the pull
+      - name: Pull the image on the server
         env:
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LOGIN_DIR: /tmp/ghcr-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.env }}
         run: |
-          # The job token can pull the image only while this job runs; log out right after
-          printf '%s' "$GHCR_TOKEN" | ssh server "docker login ghcr.io -u '$GHCR_USER' --password-stdin"
+          printf '%s' "$GHCR_TOKEN" | ssh server \
+            "mkdir -m 700 '$LOGIN_DIR' && DOCKER_CONFIG='$LOGIN_DIR' docker login ghcr.io -u '$GHCR_USER' --password-stdin"
           status=0
-          ssh server "bash /opt/crm/prod/deploy.sh '$IMAGE'" || status=$?
-          ssh server "docker logout ghcr.io" || true
+          ssh server "DOCKER_CONFIG='$LOGIN_DIR' docker pull '$IMAGE'" || status=$?
+          ssh server "rm -f '$LOGIN_DIR/config.json' && rmdir '$LOGIN_DIR'" || true
           exit $status
+
+      - name: Deploy (prod backup, migrations, new version, smoke /health)
+        env:
+          CRM_ENV: ${{ matrix.env }}
+        run: ssh server "bash /opt/crm/$CRM_ENV/deploy.sh '$CRM_ENV' '$IMAGE'"
