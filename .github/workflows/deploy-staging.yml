@@ -1,0 +1,78 @@
+# Every push to main: build the image (tag = commit SHA), push it to GHCR and deploy it to
+# staging, https://test-app.vladmath.com. Prod is deployed only by hand: workflow Deploy prod.
+# The server side lives in deploy/: CI copies it to /opt/crm/staging and runs deploy.sh staging.
+# Secrets: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY (private deploy key), DEPLOY_KNOWN_HOSTS.
+name: Deploy staging
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}:${{ github.sha }}
+
+jobs:
+  build:
+    # Only main: whatever reaches staging may go on to prod
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    # GitHub keeps the history of staging deploys (Deployments); Deploy prod takes only a SHA
+    # that has a successful deploy here
+    environment:
+      name: staging
+      url: https://test-app.vladmath.com
+    # One staging deploy at a time; a newer push waits instead of cancelling a half-done one
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/server-ssh
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          user: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          known-hosts: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+
+      # The whole folder, so a new script gets there by itself
+      - name: Copy deploy scripts to the server
+        run: scp deploy/* server:/opt/crm/staging/
+
+      - uses: ./.github/actions/pull-image
+        with:
+          image: ${{ env.IMAGE }}
+          env: staging
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy (migrations, new version, smoke /health)
+        run: ssh server "bash /opt/crm/staging/deploy.sh staging '$IMAGE'"

@@ -1,0 +1,40 @@
+# SSH to the app server as host "server", with the deploy key from the repository secrets
+name: Server SSH
+description: Sets up ssh so that `ssh server` and `scp ... server:` reach the app server
+
+inputs:
+  host:
+    description: Server address (secret DEPLOY_HOST)
+    required: true
+  user:
+    description: Server user (secret DEPLOY_USER)
+    required: true
+  key:
+    description: Private deploy key (secret DEPLOY_SSH_KEY)
+    required: true
+  known-hosts:
+    description: Server host keys (secret DEPLOY_KNOWN_HOSTS)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        DEPLOY_HOST: ${{ inputs.host }}
+        DEPLOY_USER: ${{ inputs.user }}
+        DEPLOY_SSH_KEY: ${{ inputs.key }}
+        DEPLOY_KNOWN_HOSTS: ${{ inputs.known-hosts }}
+      run: |
+        install -m 700 -d ~/.ssh
+        printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+        cat > ~/.ssh/config <<EOF
+        Host server
+          HostName $DEPLOY_HOST
+          User $DEPLOY_USER
+          IdentityFile ~/.ssh/deploy_key
+          IdentitiesOnly yes
+          StrictHostKeyChecking yes
+        EOF
