@@ -1,0 +1,109 @@
+# Deploys prod, https://app.vladmath.com. Only by hand, the owner presses the button:
+# Actions -> Deploy prod -> Run workflow.
+# - SHA empty: the commit of the last successful staging deploy
+# - SHA given: only a commit with a successful staging deploy, otherwise refused
+# - rollback: the prod version before the current one (the server remembers it), no staging
+#   check, the SHA field is ignored; the database is not rolled back
+# On the server (deploy/deploy.sh prod): database backup -> migrations -> image -> smoke /health,
+# then images older than 2 weeks are removed. Then GHCR keeps the 10 latest builds.
+# The deployed SHA is in the run summary.
+name: Deploy prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Версия: SHA коммита из main. Пусто - последняя, прошедшая тест-стенд"
+        required: false
+        type: string
+        default: ""
+      rollback:
+        description: "Откат на прошлую версию прода (поле SHA не смотрим, база не откатывается)"
+        required: false
+        type: boolean
+        default: false
+
+# One prod deploy at a time; a second press waits for the first
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # The button is run from main: its workflow and scripts are the reviewed ones
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: read
+      # Deleting old builds in GHCR
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/server-ssh
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          user: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          known-hosts: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+
+      - name: Choose the version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROLLBACK: ${{ inputs.rollback }}
+          WANTED: ${{ inputs.sha }}
+        run: bash .github/scripts/prod-version.sh
+
+      # The deploy scripts of the same version that was checked on staging. A rollback keeps the
+      # scripts already on the server: they deployed the current version
+      - name: Copy deploy scripts of that version to the server
+        if: ${{ !inputs.rollback }}
+        env:
+          SHA: ${{ steps.version.outputs.sha }}
+        run: |
+          git fetch --depth 1 origin "$SHA"
+          git checkout FETCH_HEAD -- deploy
+          scp deploy/* server:/opt/crm/prod/
+
+      - uses: ./.github/actions/pull-image
+        with:
+          image: ${{ steps.version.outputs.image }}
+          env: prod
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy (backup, migrations, new version, smoke /health)
+        env:
+          IMAGE: ${{ steps.version.outputs.image }}
+        run: ssh server "bash /opt/crm/prod/deploy.sh prod '$IMAGE'"
+
+      - name: Summary
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.version.outputs.sha }}
+          HOW: ${{ steps.version.outputs.how }}
+        run: |
+          title="$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA" --jq '.commit.message | split("\n")[0]')"
+          {
+            echo "### На проде: \`${SHA:0:7}\` - $title"
+            echo "- $HOW"
+            echo "- Проверить: https://app.vladmath.com"
+            echo "- Откатить: Run workflow с галочкой «Откат»"
+          } >>"$GITHUB_STEP_SUMMARY"
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Prod is already deployed at this point: a failed cleanup is a warning, not a red deploy
+      - name: Keep the 10 latest builds in GHCR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! bash .github/scripts/ghcr-cleanup.sh; then
+            echo "::warning::GHCR cleanup failed, old builds stay"
+            echo "- Старые сборки в GHCR не почистились, на прод это не влияет" >>"$GITHUB_STEP_SUMMARY"
+          fi
