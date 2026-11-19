@@ -5,7 +5,7 @@ import { PlusIcon, SearchXIcon, UsersIcon } from "lucide-react";
 import { ContactList, contactRowId } from "@/components/contact-list";
 import { ContactSearch } from "@/components/contact-search";
 import { GroupFilter } from "@/components/group-filter";
-import { ReachOutBlock, type ReachOutRow } from "@/components/reach-out-block";
+import { ContactsBlock, type ContactsBlockRow } from "@/components/contacts-block";
 import { ScrollIntoView } from "@/components/scroll-into-view";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -17,7 +17,13 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
-import { countContacts, listContacts, listContactsToReachOut } from "@/lib/contacts";
+import { describeBirthday, moscowToday, type ContactWithBirthday } from "@/lib/birthdays";
+import {
+  countContacts,
+  listContacts,
+  listContactsToReachOut,
+  listUpcomingBirthdays,
+} from "@/lib/contacts";
 import { pluralize } from "@/lib/format";
 import { listGroupNamesByContact, listGroups } from "@/lib/groups";
 import { describeReachOut, type ContactToReachOut } from "@/lib/keep-in-touch";
@@ -58,12 +64,16 @@ async function Contacts({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
   // The address of a group deleted meanwhile just shows all contacts
   const group = groups.find(({ id }) => String(id) === firstValue(params.group));
 
-  // The "Пора связаться" block covers the whole list, so it is hidden while narrowing it down
-  const [contacts, allContactsCount, groupNames, toReachOut] = await Promise.all([
+  // The "Скоро день рождения" and "Пора связаться" blocks cover the whole list, so they are
+  // hidden while narrowing it down
+  const narrowed = Boolean(query || group);
+  const now = new Date();
+  const [contacts, allContactsCount, groupNames, toReachOut, birthdays] = await Promise.all([
     listContacts(ownerId, query, group?.id),
     countContacts(ownerId),
     listGroupNamesByContact(ownerId),
-    query || group ? [] : listContactsToReachOut(ownerId),
+    narrowed ? [] : listContactsToReachOut(ownerId),
+    narrowed ? [] : listUpcomingBirthdays(ownerId, now),
   ]);
   const total = group ? group.contactCount : allContactsCount;
   const rows = contacts.map((contact) => ({
@@ -84,7 +94,21 @@ async function Contacts({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
 
       {groups.length > 0 && <GroupFilter groups={groups} selectedId={group?.id} query={query} />}
 
-      {toReachOut.length > 0 && <ReachOutBlock rows={toReachOut.map(toReachOutRow)} />}
+      {birthdays.length > 0 && (
+        <ContactsBlock
+          title="Скоро день рождения"
+          testId="birthdays"
+          rows={birthdays.map((contact) => toBirthdayRow(contact, now))}
+        />
+      )}
+
+      {toReachOut.length > 0 && (
+        <ContactsBlock
+          title="Пора связаться"
+          testId="reach-out"
+          rows={toReachOut.map(toReachOutRow)}
+        />
+      )}
 
       <div className="sticky top-0 z-10 -mx-6 bg-background/90 px-6 pt-2 pb-3 backdrop-blur-md">
         <ContactSearch defaultValue={query} groupId={group?.id} />
@@ -109,8 +133,17 @@ async function Contacts({ searchParams }: Pick<PageProps<"/">, "searchParams">) 
 }
 
 // Dates are formatted here, on the server, so the browser shows the same text
-function toReachOutRow(contact: ContactToReachOut): ReachOutRow {
+function toReachOutRow(contact: ContactToReachOut): ContactsBlockRow {
   return { id: contact.id, name: contact.name, details: describeReachOut(contact) };
+}
+
+// "Сегодня, 18 ноября · исполняется 35": counted from the same "now" as the block's contacts
+function toBirthdayRow(contact: ContactWithBirthday, now: Date): ContactsBlockRow {
+  return {
+    id: contact.id,
+    name: contact.name,
+    details: describeBirthday(contact.birthday, moscowToday(now)),
+  };
 }
 
 function ContactsFallback() {

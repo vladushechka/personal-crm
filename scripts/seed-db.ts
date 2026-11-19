@@ -5,6 +5,7 @@ import { and, eq, sql } from "drizzle-orm";
 import type { Db } from "../src/db/client";
 import { contactGroups, contacts, groups, notes, users } from "../src/db/schema";
 
+import { pickFakeBirthday } from "./fake-birthdays";
 import { generateFakeContacts } from "./fake-contacts";
 import { fakeGroupNames, pickFakeGroupNames } from "./fake-groups";
 
@@ -97,5 +98,32 @@ export async function assignFakeGroups(db: Db, ownerId: string) {
       groupCount: created.length,
       contactCount: new Set(members.map(({ contactId }) => contactId)).size,
     };
+  });
+}
+
+// About a third of the owner's contacts get a random birthday, most of them with a year, so the
+// "Скоро день рождения" block has people in it. Returns how many contacts got one
+export async function assignFakeBirthdays(db: Db, ownerId: string) {
+  return db.transaction(async (tx) => {
+    const people = await tx
+      .select({ id: contacts.id })
+      .from(contacts)
+      .where(eq(contacts.ownerId, ownerId));
+
+    let assigned = 0;
+    for (const { id } of people) {
+      const birthday = pickFakeBirthday();
+      if (!birthday) continue;
+      await tx
+        .update(contacts)
+        .set({
+          birthdayDay: birthday.day,
+          birthdayMonth: birthday.month,
+          birthdayYear: birthday.year,
+        })
+        .where(eq(contacts.id, id));
+      assigned++;
+    }
+    return assigned;
   });
 }

@@ -8,6 +8,7 @@ import { getDatabaseConfig, loadEnvFile } from "../src/db/config";
 import { contacts } from "../src/db/schema";
 
 import {
+  assignFakeBirthdays,
   assignFakeFrequencies,
   assignFakeGroups,
   insertFakeContacts,
@@ -36,10 +37,12 @@ async function main() {
     const result = await insertFakeContacts(db, ownerId, requested);
     const withFrequency = await assignFakeFrequencies(db, ownerId);
     const inGroups = await assignFakeGroups(db, ownerId);
+    const withBirthday = await assignFakeBirthdays(db, ownerId);
     console.log(
       `Added ${result.contactCount} contacts and ${result.noteCount} notes, ` +
         `${withFrequency} contacts got a "how often to talk", ` +
-        `${inGroups.contactCount} are in ${inGroups.groupCount} groups.`,
+        `${inGroups.contactCount} are in ${inGroups.groupCount} groups, ` +
+        `${withBirthday} have a birthday.`,
     );
   } finally {
     await client.end();

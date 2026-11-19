@@ -15,9 +15,6 @@ export const frequencies = Object.keys(frequencyLabels) as [
   ...KeepInTouchFrequency[],
 ];
 
-// How many contacts the "Пора связаться" block shows before "Показать всех"
-export const REACH_OUT_PREVIEW_COUNT = 5;
-
 export type ContactToReachOut = {
   id: number;
   name: string;

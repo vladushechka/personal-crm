@@ -5,6 +5,7 @@ import {
   integer,
   pgTable,
   primaryKey,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -37,12 +38,32 @@ export const contacts = pgTable(
     keepInTouchFrequency: text("keep_in_touch_frequency").$type<KeepInTouchFrequency>(),
     // When the current frequency was chosen: the countdown starts here while there are no notes
     keepInTouchSince: timestamp("keep_in_touch_since", { withTimezone: true }),
+    // Birthday: day (1-31) and month (1-12) are set together, the year is optional
+    birthdayDay: smallint("birthday_day"),
+    birthdayMonth: smallint("birthday_month"),
+    birthdayYear: smallint("birthday_year"),
   },
   (table) => [
     index("contacts_owner_id_name_idx").on(table.ownerId, table.name),
     check(
       "contacts_keep_in_touch_frequency_check",
       sql`${table.keepInTouchFrequency} in ('week', 'month', 'quarter', 'year')`,
+    ),
+    check(
+      "contacts_birthday_day_month_check",
+      sql`(${table.birthdayDay} is null) = (${table.birthdayMonth} is null)`,
+    ),
+    // A day that exists in that month; 29 February is fine, a year is checked by the app
+    check(
+      "contacts_birthday_date_check",
+      sql`${table.birthdayMonth} between 1 and 12 and ${table.birthdayDay} between 1 and case
+        when ${table.birthdayMonth} = 2 then 29
+        when ${table.birthdayMonth} in (4, 6, 9, 11) then 30
+        else 31 end`,
+    ),
+    check(
+      "contacts_birthday_year_check",
+      sql`${table.birthdayYear} is null or (${table.birthdayDay} is not null and ${table.birthdayYear} >= 1900)`,
     ),
   ],
 );

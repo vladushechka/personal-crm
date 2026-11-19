@@ -35,7 +35,7 @@ async function EditContact({ params }: Pick<PageProps<"/contacts/[id]/edit">, "p
   if (!contact) notFound();
 
   const defaultValues = Object.fromEntries(
-    contactFields.map((field) => [field, contact[field] ?? ""]),
+    contactFields.map((field) => [field, String(contact[field] ?? "")]),
   );
 
   return (
