@@ -151,12 +151,11 @@ pnpm start
 - `current-image`, `previous-image` - текущая и предыдущая версии
 - `backups/` (только у прода) - копии базы, читает только владелец папки: внутри личные данные
 
-Посмотреть, что запущено, и логи (для стенда - `cd /opt/crm/staging` и `-p staging`):
+Посмотреть, что запущено (для стенда - `cd /opt/crm/staging` и `-p staging`):
 
 ```
 cd /opt/crm/prod
 APP_IMAGE=$(cat current-image) docker compose -p prod ps
-APP_IMAGE=$(cat current-image) docker compose -p prod logs app --tail 50
 ```
 
 Один раз после выкатки «Пора связаться» - частоты общения тестовым контактам:
@@ -178,6 +177,37 @@ APP_IMAGE=$(cat current-image) docker compose -p prod run --rm migrate node_modu
 ```
 bash /opt/crm/prod/deploy.sh prod "$(cat /opt/crm/prod/previous-image)"
 ```
+
+### Логи
+
+Логи приложения, базы и миграций пишутся в журнал сервера (journald). Выкатка и откат пересоздают контейнер, но старые строки остаются в журнале. Размер журнала ограничивает система: сейчас до 3,9 ГБ на весь сервер, самые старые строки удаляются сами, диск не забивается.
+
+Читать на сервере после `ssh crm`. Для стенда - `staging` вместо `prod`.
+
+Все логи прода за последний час:
+
+```
+sudo journalctl COM_DOCKER_COMPOSE_PROJECT=prod --since "1 hour ago"
+```
+
+Ошибки и предупреждения прода за сутки:
+
+```
+sudo journalctl COM_DOCKER_COMPOSE_PROJECT=prod --since "24 hours ago" -g "error|warn|fatal"
+```
+
+Только приложение, вживую - новые строки появляются сразу (выйти - Ctrl+C):
+
+```
+sudo journalctl CONTAINER_NAME=prod-app-1 -f
+```
+
+Как читать вывод:
+
+- Слева в строке - время по Москве и чья строка: `prod-app-1` - приложение, `prod-db-1` - база, `prod-migrate-run-...` - миграции при выкатке. Время внутри строк базы - по UTC, на 3 часа меньше
+- Длинный вывод листается стрелками, выйти - `q`
+- Период меняется в `--since`: `"30 min ago"`, `"2 days ago"`, `today`, `"2026-11-20 10:00"`
+- `docker compose logs` тоже работает, но показывает только текущий контейнер: строки до последней выкатки в нём не видны
 
 ### Настройки на сервере
 
