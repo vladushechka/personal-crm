@@ -31,6 +31,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { parseContactId } from "@/lib/contact-schema";
 import { getContactWithNotes } from "@/lib/contacts";
+import { formatBirthday } from "@/lib/birthdays";
 import { formatDateTime, pluralize } from "@/lib/format";
 import { listContactGroupIds, listGroups } from "@/lib/groups";
 import { requireUserId } from "@/lib/session";
@@ -72,6 +73,17 @@ async function ContactDetails({ params, searchParams }: PageProps<"/contacts/[id
       label: "Почта",
       value: contact.email,
       href: contact.email ? `mailto:${contact.email}` : undefined,
+    },
+    {
+      label: "День рождения",
+      value:
+        contact.birthdayDay && contact.birthdayMonth
+          ? formatBirthday({
+              day: contact.birthdayDay,
+              month: contact.birthdayMonth,
+              year: contact.birthdayYear,
+            })
+          : null,
     },
   ];
 

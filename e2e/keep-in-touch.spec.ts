@@ -51,7 +51,8 @@ async function openReachOut(page: Page) {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1, name: "Контакты" })).toBeVisible();
   await page.waitForLoadState("networkidle");
-  const showAll = page.getByRole("button", { name: /^Показать всех/ });
+  // The "Скоро день рождения" block above has its own "Показать всех"
+  const showAll = page.getByTestId("reach-out").getByRole("button", { name: /^Показать всех/ });
   if (await showAll.isVisible()) await showAll.click();
   return page.getByTestId("reach-out-row");
 }
@@ -270,7 +271,9 @@ test("the block shows the five most overdue and opens the rest in the same order
   await expect(rows).toHaveCount(5);
   expect(await rowNames()).toEqual(mostOverdueFirst.slice(0, 5));
 
-  const showAll = page.getByRole("button", { name: /^Показать всех \(\d+\)$/ });
+  const showAll = page
+    .getByTestId("reach-out")
+    .getByRole("button", { name: /^Показать всех \(\d+\)$/ });
   const total = Number((await showAll.textContent())?.match(/\d+/)?.[0]);
   expect(total).toBeGreaterThanOrEqual(6);
 

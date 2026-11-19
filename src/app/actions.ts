@@ -8,6 +8,7 @@ import {
   contactFields,
   contactInputSchema,
   noteInputSchema,
+  type ContactErrorKey,
   type ContactField,
   type ContactInput,
 } from "@/lib/contact-schema";
@@ -45,7 +46,7 @@ const frequencyInputSchema = z
   .transform((value) => (value === "" ? null : value));
 
 export type ContactFormState = {
-  errors?: Partial<Record<ContactField, string>>;
+  errors?: Partial<Record<ContactErrorKey, string>>;
   // Submitted values, so the form keeps them when validation fails
   values?: Partial<Record<ContactField, string>>;
 };
@@ -66,9 +67,9 @@ function parseContactForm(
   const parsed = contactInputSchema.safeParse(values);
   if (parsed.success) return { data: parsed.data };
 
-  const errors: Partial<Record<ContactField, string>> = {};
+  const errors: Partial<Record<ContactErrorKey, string>> = {};
   for (const issue of parsed.error.issues) {
-    const field = issue.path[0] as ContactField;
+    const field = issue.path[0] as ContactErrorKey;
     errors[field] ??= issue.message;
   }
   return { invalid: { errors, values } };

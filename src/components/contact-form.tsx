@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useId } from "react";
 
 import type { ContactFormAction, ContactFormState } from "@/app/actions";
+import { BirthdayFields } from "@/components/birthday-fields";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,7 @@ import { Spinner } from "@/components/ui/spinner";
 import type { ContactField } from "@/lib/contact-schema";
 
 type FieldConfig = {
-  name: ContactField;
+  name: Exclude<ContactField, "birthdayDay" | "birthdayMonth" | "birthdayYear">;
   label: string;
   type?: "text" | "tel" | "email";
   placeholder?: string;
@@ -68,6 +69,8 @@ export function ContactForm({
   // Next.js keeps visited pages in the document (hidden), so the add and edit forms can be
   // there at the same time: unique ids keep each label tied to its own input
   const idPrefix = useId();
+  // Submitted values after a failed save, otherwise the contact's current values
+  const valueOf = (field: ContactField) => state.values?.[field] ?? defaultValues?.[field] ?? "";
 
   return (
     <form action={formAction}>
@@ -89,13 +92,22 @@ export function ContactForm({
                 autoComplete={field.autoComplete}
                 required={field.required}
                 autoFocus={field.name === "name"}
-                defaultValue={state.values?.[field.name] ?? defaultValues?.[field.name]}
+                defaultValue={valueOf(field.name)}
                 aria-invalid={Boolean(error)}
               />
               <FieldError>{error}</FieldError>
             </Field>
           );
         })}
+        <BirthdayFields
+          idPrefix={idPrefix}
+          values={{
+            day: valueOf("birthdayDay"),
+            month: valueOf("birthdayMonth"),
+            year: valueOf("birthdayYear"),
+          }}
+          error={state.errors?.birthday}
+        />
         <FieldDescription>
           Обязательно только имя. Остальное можно заполнить позже.
         </FieldDescription>

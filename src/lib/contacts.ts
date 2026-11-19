@@ -13,6 +13,7 @@ import {
   type KeepInTouchFrequency,
 } from "@/db/schema";
 
+import { moscowToday, pickUpcomingBirthdays, type ContactWithBirthday } from "./birthdays";
 import type { ContactInput } from "./contact-schema";
 import { pickContactsToReachOut, type ContactToReachOut } from "./keep-in-touch";
 
@@ -233,6 +234,39 @@ export async function listContactsToReachOut(ownerId: string): Promise<ContactTo
     since: row.since!,
   }));
   return pickContactsToReachOut(withFrequency, new Date());
+}
+
+// The user's contacts with a birthday today or in the next 7 days, the nearest first
+// (rules in birthdays.ts). The 8 days touch at most this month and the next one, so only
+// their birthdays come from the database
+export async function listUpcomingBirthdays(
+  ownerId: string,
+  now: Date,
+): Promise<ContactWithBirthday[]> {
+  const { month } = moscowToday(now);
+  const rows = await getDb()
+    .select({
+      id: contacts.id,
+      name: contacts.name,
+      day: contacts.birthdayDay,
+      month: contacts.birthdayMonth,
+      year: contacts.birthdayYear,
+    })
+    .from(contacts)
+    .where(
+      and(
+        eq(contacts.ownerId, ownerId),
+        inArray(contacts.birthdayMonth, [month, (month % 12) + 1]),
+      ),
+    );
+
+  // Day and month are set together (a check in the database), so the day is there too
+  const withBirthday = rows.map(({ id, name, day, month, year }) => ({
+    id,
+    name,
+    birthday: { day: day!, month: month!, year },
+  }));
+  return pickUpcomingBirthdays(withBirthday, now);
 }
 
 // The contact's notes are deleted by the database too (on delete cascade).

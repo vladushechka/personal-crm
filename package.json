@@ -15,6 +15,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:seed:keep-in-touch": "tsx scripts/seed-keep-in-touch.ts",
     "db:seed:groups": "tsx scripts/seed-groups.ts",
+    "db:seed:birthdays": "tsx scripts/seed-birthdays.ts",
     "test": "vitest run",
     "test:e2e": "playwright test"
   },
