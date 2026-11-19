@@ -6,11 +6,17 @@
 # Both environments share one server: every container has a memory ceiling, so one of them
 # can't starve the other or the landing.
 
+# Container logs go to the server journal (journald), not to files inside Docker: a deploy and a
+# rollback recreate the app container, and its old lines stay in the journal. The journal's size
+# is limited by the system (journald.conf): the oldest lines are removed, the disk doesn't fill up.
+# Each line is tagged with the container name (prod-app-1) and carries the compose project and
+# service as fields, so one environment reads as a whole (README, "Логи"):
+#   sudo journalctl COM_DOCKER_COMPOSE_PROJECT=prod --since "1 hour ago"
 x-logging: &logging
-  driver: json-file
+  driver: journald
   options:
-    max-size: "10m"
-    max-file: "3"
+    tag: "{{.Name}}"
+    labels: com.docker.compose.project,com.docker.compose.service
 
 # The server has 1.8 GB; on 2026-11-11 the prod app used ~230 MB and its database ~55 MB
 x-app: &app
