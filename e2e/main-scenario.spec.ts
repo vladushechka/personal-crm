@@ -1,8 +1,28 @@
 // Success criteria from specs/01-продуктовая-идея.md, checked in a real browser
 
-import { chromium, expect, test } from "@playwright/test";
+import { test as base, type Browser, expect } from "@playwright/test";
 
 import { E2E_CONTACT_COUNT, E2E_STORAGE_STATE } from "./constants";
+
+// "Another browser sees the same data" opens the app in Microsoft Edge. On GitHub's runners
+// Edge takes 20-60 s to start (CI run 44652889083: 46 s to launch, then 10+ s for the first
+// page), while the scenario itself takes about 5 s. So Edge starts here, once per worker and
+// with its own time limit: its start no longer eats the 60 s of the test
+const test = base.extend<object, { otherBrowser: Browser }>({
+  otherBrowser: [
+    async ({ playwright }, use) => {
+      const startedAt = Date.now();
+      const browser = await playwright.chromium.launch({ channel: "msedge" });
+      // The first page right after the start is the slow one: open it here, not in the test
+      await (await browser.newPage()).close();
+      console.log(`Microsoft Edge started in ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
+
+      await use(browser);
+      await browser.close();
+    },
+    { scope: "worker", timeout: 120_000 },
+  ],
+});
 
 test("opening the app shows the list of all contacts", async ({ page }) => {
   await page.goto("/");
@@ -17,6 +37,7 @@ test("opening the app shows the list of all contacts", async ({ page }) => {
 
 test("add a contact, find it by name, add a note; another browser sees the same data", async ({
   page,
+  otherBrowser,
 }) => {
   const uniqueId = Date.now().toString(36);
   const name = `Тестовый Контакт ${uniqueId}`;
@@ -55,11 +76,10 @@ test("add a contact, find it by name, add a note; another browser sees the same 
   await expect(page.getByTestId("note").filter({ hasText: note })).toBeVisible();
   const cardUrl = page.url();
 
-  // A different browser (Microsoft Edge) at the same address sees the same data
-  const otherBrowser = await chromium.launch({ channel: "msedge" });
+  // A different browser (Microsoft Edge) at the same address sees the same data.
+  // The same person, signed in there too
+  const otherPage = await otherBrowser.newPage({ storageState: E2E_STORAGE_STATE });
   try {
-    // The same person, signed in there too
-    const otherPage = await otherBrowser.newPage({ storageState: E2E_STORAGE_STATE });
     await otherPage.goto(cardUrl);
     await expect(otherPage.getByRole("heading", { level: 1, name })).toBeVisible();
     await expect(otherPage.getByTestId("note").filter({ hasText: note })).toBeVisible();
@@ -67,7 +87,7 @@ test("add a contact, find it by name, add a note; another browser sees the same 
     await otherPage.goto(new URL("/", cardUrl).toString());
     await expect(otherPage.getByTestId("contact-row").filter({ hasText: name })).toBeVisible();
   } finally {
-    await otherBrowser.close();
+    await otherPage.context().close();
   }
 });
 
